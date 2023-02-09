@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 /data
 /notebooks_lag
+/env_bayes_filter
