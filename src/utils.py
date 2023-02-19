@@ -1,11 +1,5 @@
 import numpy as np
 
-
-def get_confidence_interval(mu, var, interval_span: float = 1.96):
-    return np.array([mu + interval_span * np.sqrt(var),
-                     mu - interval_span * np.sqrt(var)])
-
-
 def assert_dim(A, dim1, dim2=None, isone_d: bool = False):
     if dim2 is None:
         dim2 = dim1
