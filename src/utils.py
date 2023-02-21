@@ -29,7 +29,7 @@ def update(z, x_b, P_b, H, R):
     y = z - H @ x_b
 
     # P_t+1
-    P_1 = (np.identity(2) - K @ H) @ P_b
+    P_1 = (np.identity(P_b.shape[0]) - K @ H) @ P_b
     # x_t+1
     x_1 = x_b + K @ y
 
