@@ -1,3 +1,14 @@
 # Hello. I'm coding the ARIMA filter here for simplicity of results. 
 
 %run init_notebookspace.py
+
+import pandas as pd
+from pandas_datareader import fred
+import yfinance as yf
+
+import matplotlib.pyplot as plt
+
+from statsmodels.tsa.stattools import adfuller  
+from numpy import log  
+import pandas as pd  
+
