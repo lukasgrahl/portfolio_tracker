@@ -1,0 +1,3 @@
+# Hello. I'm coding the ARIMA filter here for simplicity of results. 
+
+%run init_notebookspace.py
