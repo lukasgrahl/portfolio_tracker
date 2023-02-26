@@ -14,3 +14,11 @@ import pandas as pd
 
 from statsmodels.tsa.arima.model import ARIMA
 
+# Code source imported data.csv here 
+
+res = adfuller( mydata.value.dropna())  
+print('Augmented Dickey-Fuller Statistic: %f' % res[0])  
+print('p-value: %f' % res[1])   
+
+# determining the ADF for the 'd' value of ARIMA 
+
