@@ -1,22 +1,24 @@
 # Hello. I'm coding the ARIMA filter here for simplicity of results. 
 # NEed to test iin jupyter notebook 
 
-%run init_notebookspace.py
+# %run init_notebookspace.py
 
-import pandas as pd
-from pandas_datareader import fred
-import yfinance as yf
+# import pandas as pd
+# from pandas_datareader import fred
+# import yfinance as yf
+#
+# import matplotlib.pyplot as plt
+#
+# from statsmodels.tsa.stattools import adfuller
+# from numpy import log
+# import pandas as pd
+#
+# from statsmodels.tsa.arima.model import ARIMA
+#
+# Code source imported data.csv here
+# Checking for statoinarity via ADF test below
 
-import matplotlib.pyplot as plt
-
-from statsmodels.tsa.stattools import adfuller  
-from numpy import log  
-import pandas as pd  
-
-from statsmodels.tsa.arima.model import ARIMA
-
-# Code source imported data.csv here 
-# Checking for statoinarity via ADF test below 
+mydata = pd.read_csv()
 
 res = adfuller( mydata.value.dropna())  
 print('Augmented Dickey-Fuller Statistic: %f' % res[0])  
