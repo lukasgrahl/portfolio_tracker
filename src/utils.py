@@ -1,4 +1,6 @@
 import numpy as np
+import datetime
+import pprint
 
 def assert_dim(A, dim1, dim2=None, isone_d: bool = False):
     if dim2 is None:
@@ -39,3 +41,44 @@ def update(z, x_b, P_b, H, R):
 def get_confidence_interval(mu, var, interval_span: float = 1.96):
     return np.array([mu + interval_span * np.sqrt(var),
                      mu - interval_span * np.sqrt(var)])
+
+
+def apply_datetime_format(x, dt_format: str = None):
+
+    x = str(x)
+    if dt_format is None:
+
+        try:
+            x = datetime.datetime.strptime(x, "%Y-%m-%d")
+            return x
+        except ValueError:
+            pass
+
+        try:
+            x = datetime.datetime.strptime(x, "%m.%d.%Y")
+            return x
+        except ValueError:
+            pass
+
+        try:
+            x = datetime.datetime.strptime(x, "%d/%m/%Y")
+            return x
+        except ValueError:
+            pass
+
+        try:
+            x = datetime.datetime.strptime(x, "%d.%m.%Y %H:%M:%S")
+            return x
+        except ValueError:
+            pass
+
+        try:
+            x = datetime.datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
+            return x
+        except ValueError:
+            pass
+
+        pprint("Datetime Assignment failed")
+        raise ValueError(x, "Format not in the collection")
+    else:
+        return datetime.datetime.strptime(x, dt_format)
