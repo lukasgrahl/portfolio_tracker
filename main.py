@@ -9,7 +9,6 @@ import os
 if __name__ == '__main__':
     sp500_largest = get_sp500_n_largest()
     np.save(os.path.join(DATA_DIR, 'sp500_largest.npy'), sp500_largest)
-    # sp500_largest.to_csv(os.path.join(DATA_DIR, 'sp500_largest.csv'))
 
     sp500_ticker = ['^GSPC']
     start = '2020-01-01'
