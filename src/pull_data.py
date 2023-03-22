@@ -55,7 +55,7 @@ def get_sp500_n_largest(n: int = 5) -> list:
     return sp500_largest
 
 
-# @st.cache_data()
+@st.cache_data()
 def load_csv(file_name: str, path: str, time_period: str = None, **kwargs) -> pd.DataFrame:
     df = pd.read_csv(os.path.join(path, file_name), **kwargs)
     if time_period is not None:

@@ -10,7 +10,7 @@ from src.utils import get_ARlags
 
 
 def get_ARMA_test(p, q, train: pd.DataFrame, endog: list, exog: list):
-    mod = ARIMA(endog=train[[f'{endog[0]}_lead']], exog=train[exog], order=(p, 0, q))
+    mod = ARIMA(endog=train[endog], exog=train[exog], order=(p, 0, q))
     res = mod.fit()
     ma_resid = res.resid
     p, q, d = mod.k_ar, mod.k_ma, mod.k_exog
@@ -65,11 +65,8 @@ def set_up_kalman_filter(p: int, q: int, d: int, xdim: int, zdim: int, data: pd.
     # Z measurement function: measurement -> state space
     Z = np.diag([1] * zdim)
 
-    # get lead on endogenous variable for forecasting
-    data[f'{endog[0]}_lead'] = data[endog[0]].shift(1)
-
     # zs observation matrix
-    ar_df = get_ARlags(data[f'{endog[0]}_lead'], p, ret_org_ser=False)
+    ar_df = get_ARlags(data[endog[0]], p, ret_org_ser=False)
     ma_df = get_ARlags(ma_resid, q, ret_org_ser=False)
     exo_df = data[exog].copy()
 

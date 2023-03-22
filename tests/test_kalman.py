@@ -1,5 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
 
 import os
 
@@ -14,18 +16,17 @@ if __name__ == "__main__":
     test, train = train_test_split(df_rets, .2)
     train.index = pd.DatetimeIndex(train.index).to_period('D')
 
-    ### ARMA INPUT ####
-    endog = ['^GSPC']
+    train[f'^GSPC_lead'] = train['^GSPC'].shift(1)
 
-    for p, q, exog in [(1, 3, ['AAPL']), (1, 0, ['AAPL']), (2, 4, ['AAPL', 'GOOG']), (1, 0, [])]:
+    ### ARMA INPUT ####
+    endog = ['^GSPC_lead']
+
+    for p, q, exog in [(1, 3, ['AAPL'])]: #, (1, 0, ['AAPL']), (2, 4, ['AAPL', 'GOOG']), (1, 0, [])]:
 
         print(p, q, exog)
 
-        train[f'{endog[0]}_lead'] = train[endog[0]].shift(1)
         # get arima output
         p, q, d, ma_resid, arima_params = get_ARMA_test(p, q, train, endog, exog)
-        # drop lead from data
-        train.drop(['^GSPC_lead'], axis=1, inplace=True)
 
         #### Testing Code ####
         # set up filter
@@ -36,7 +37,14 @@ if __name__ == "__main__":
                                                                   train, ma_resid, arima_params, endog, exog)
         X_out, P_out, X_pred, P_pred, LL_out = kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars)
 
-        print(X_pred)
+        df_xtrue = df_rets[endog].iloc[:len(X_out)].copy()
+        df_xpred = pd.DataFrame(X_pred[:, 0], index=df_xtrue.index, columns=[f'{endog[0]}_pred'])
+
+        sns.lineplot(df_xtrue)
+        plt.show()
+
+        tn, fp, fn, tp = confusion_matrix(y_true=(df_xtrue >= 0), y_pred=(df_xpred >= 0)).ravel()
+
         # plot results
         # inds, inde = 0, len(train)
         # fig, ax = plt.subplots(figsize=(15, 5))
