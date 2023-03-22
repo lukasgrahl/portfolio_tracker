@@ -6,7 +6,6 @@ from numba import njit
 from scipy import linalg
 
 
-
 def assert_dim(A, dim1, dim2=None, isone_d: bool = False):
     if dim2 is None:
         dim2 = dim1
@@ -49,7 +48,6 @@ def get_confidence_interval(mu, var, interval_span: float = 1.96):
 
 
 def apply_datetime_format(x, dt_format: str = None):
-
     x = str(x)
     if dt_format is None:
 
@@ -89,7 +87,6 @@ def apply_datetime_format(x, dt_format: str = None):
         return datetime.datetime.strptime(x, dt_format)
 
 
-
 @njit
 def kalman_predict(x, P, T, QN) -> (np.array, np.array):
     # predict
@@ -99,14 +96,25 @@ def kalman_predict(x, P, T, QN) -> (np.array, np.array):
     return x_pred, P_pred
 
 
-def get_ARlags(ser: pd.Series, lags: int, suffix: str = 'lag') -> pd.DataFrame:
+def get_ARlags(ser: pd.Series, lags: int, suffix: str = 'lag', ret_org_ser: bool = True) -> pd.DataFrame:
+    """
+    get lagged values for pandas series
+    :param ser: input series e.g. prices, returns
+    :param lags: number of lags: 1 to lags will be returned
+    :param suffix: name suffix for lagged columns
+    :param ret_org_ser: boolean on whether to return the non-lagged original series in df
+    :return: df with original series and
+    """
     df = ser.copy()
     df = pd.DataFrame(df)
     col = ser.name
-    for i in range(1, abs(lags)+1):
+    for i in range(1, abs(lags) + 1):
         if lags < 0: i = i * -1
         df[f'{col}_{suffix}_{i}'] = ser.shift(i).copy()
+
+    if not ret_org_ser: df.drop(col, axis=1, inplace=True)
     return df.dropna()
+
 
 def kalman_update(z, x, P, Z, H) -> (np.array, np.array, np.array, bool):
     # residual
@@ -178,6 +186,3 @@ def kalman_filter(x0, P0, zs, T, Q, Z, H, ma_index: list, ar_index: list):
 
     print('true inverse', true_inv_count / (len(zs) - 1))
     return np.array(X_out), np.array(P_out), np.array(LL_out)
-
-
-
