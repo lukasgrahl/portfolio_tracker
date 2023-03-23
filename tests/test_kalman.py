@@ -4,6 +4,8 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix
 
 import os
+from datetime import timedelta
+from itertools import chain
 
 from src.filter import set_up_kalman_filter, kalman_filter, get_ARMA_test
 from src.pull_data import train_test_split
@@ -33,17 +35,22 @@ if __name__ == "__main__":
         xdim = p + d + q
         zdim = xdim
 
-        T, Q, Z, H, x0, P0, zs, state_vars = set_up_kalman_filter(p, q, d, xdim, zdim,
-                                                                  train, ma_resid, arima_params, endog, exog)
+        T, Q, Z, H, x0, P0, zs, state_vars, zs_index = set_up_kalman_filter(p, q, d, xdim, zdim, train,
+                                                                            ma_resid, arima_params, endog, exog)
+
         X_out, P_out, X_pred, P_pred, LL_out = kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars)
 
-        df_xtrue = df_rets[endog].iloc[:len(X_out)].copy()
-        df_xpred = pd.DataFrame(X_pred[:, 0], index=df_xtrue.index, columns=[f'{endog[0]}_pred'])
+        df_xtrue = train[endog].loc[zs_index].copy()
+        ind = pd.DatetimeIndex([str(item) for item in zs_index])
+        df_xtrue = pd.DataFrame(df_xtrue.values, index=ind, columns=endog)
+
+        ind = pd.DatetimeIndex([*chain([str(item) for item in zs_index], ['2022-12-31'])])
+        df_xpred = pd.DataFrame(X_pred[:, 0], index=ind, columns=[f'{endog[0]}_pred'])
 
         sns.lineplot(df_xtrue)
         plt.show()
 
-        tn, fp, fn, tp = confusion_matrix(y_true=(df_xtrue >= 0), y_pred=(df_xpred >= 0)).ravel()
+        tn, fp, fn, tp = confusion_matrix(y_true=(df_xtrue >= 0), y_pred=(df_xpred.iloc[:-1] >= 0)).ravel()
 
         # plot results
         # inds, inde = 0, len(train)
