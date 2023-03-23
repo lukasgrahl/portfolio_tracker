@@ -32,7 +32,7 @@ if __name__ == '__main__':
         # select time window
         analysis_time = st.select_slider(
             'How many weeks would you like the analysis to run on?',
-            options=list(range(10, 120, 10)))
+            options=list(range(10, 260, 10)))
         dt_end = datetime.now().date()
         dt_start = dt_end - timedelta(weeks=analysis_time)
         start = str(dt_start)
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     )
 
     # Load data
-    sel_ind_composit_tickers, _, sel_ind_nlargest_tickers, success = get_index_nlargest_composits(sel_ind)
+    sel_ind_composit_tickers, _, sel_ind_nlargest_tickers, success = get_index_nlargest_composits(sel_ind, n=10)
     st.write(f'{success} success on pulling market cap')
     df_prices = get_yf_ticker_data([*chain(sel_ind_ticker, sel_ind_nlargest_tickers)], start, end)
 
@@ -60,11 +60,12 @@ if __name__ == '__main__':
     df_rets = np.log(df_prices / df_prices.shift(1)).dropna().copy()
 
     ###### ARIMA #########
-    endog = sel_ind_ticker.copy()
+    endog = [f'{sel_ind_ticker[0]}_lead']
     exog = sel_ind_nlargest_tickers.copy()
-    p, q = 2, 1
+    p, q = 3, 1
+
     # get index lead returns for prediction
-    df_rets[f'{endog[0]}_lead'] = df_rets[endog[0]].shift(1)
+    df_rets[endog[0]] = df_rets[sel_ind_ticker[0]].shift(-1)
     df_rets.dropna(inplace=True)
     # get arima output
     st.write(df_rets.head())
@@ -82,14 +83,17 @@ if __name__ == '__main__':
     df_xtrue = df_rets[endog].loc[zs_index].copy()
     ind = pd.DatetimeIndex([str(item) for item in zs_index])
     df_xtrue = pd.DataFrame(df_xtrue.values, index=ind, columns=endog)
+    df_xfilt = pd.DataFrame(X_out[:, 0], index=ind, columns=[f'{endog[0]}_filter'])
 
     ind = pd.DatetimeIndex([*chain([str(item) for item in zs_index], [str(datetime.now().date() + timedelta(days=1))])])
     df_xpred = pd.DataFrame(X_pred[:, 0], index=ind, columns=[f'{endog[0]}_pred'])
+
 
     # get performance scoring
     conf_mat = pd.DataFrame(confusion_matrix(y_true=(df_xtrue >= 0),
                                              y_pred=(df_xpred.iloc[:-1] >= 0)),
                             index=['tn', 'fp'], columns=['fn', 'tp'])
+    conf_mat = conf_mat/len(df_xtrue)
     roc_score = roc_auc_score(y_true=(df_xtrue >= 0), y_score=(df_xpred.iloc[:-1] >= 0))
 
     #### Plotting #####
@@ -104,9 +108,10 @@ if __name__ == '__main__':
     # Kalman Filter
     with tab1:
         # streamlit cols
-        b1, b2 = st.columns(2)
+        b1, b2 = st.columns([3, 1])
 
-        b1.line_chart(pd.concat([df_xtrue, df_xpred], axis=1))
+        b1.write('Returns chart')
+        b1.line_chart(pd.concat([df_xtrue, df_xpred, df_xfilt], axis=1))
         b1.write(f'Tomorrows return is predicted to be: {round(df_xpred.iloc[-1].values[0], 3)}')
 
         fig, ax = plt.subplots(figsize=(5, 5))

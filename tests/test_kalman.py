@@ -18,7 +18,8 @@ if __name__ == "__main__":
     test, train = train_test_split(df_rets, .2)
     train.index = pd.DatetimeIndex(train.index).to_period('D')
 
-    train[f'^GSPC_lead'] = train['^GSPC'].shift(1)
+    train[f'^GSPC_lead'] = train['^GSPC'].shift(-1)
+    train = train.dropna()
 
     ### ARMA INPUT ####
     endog = ['^GSPC_lead']
