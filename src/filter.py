@@ -72,7 +72,7 @@ def set_up_kalman_filter(p: int, q: int, d: int, xdim: int, zdim: int, data: pd.
 
     df = ar_df.join(ma_df)
     df = df.join(exo_df)
-    df.dropna(inplace=True)
+    df = df.dropna()
 
     zs = df.values.reshape((len(df), no_params, 1))
     zs[:, ma_bool_mask] = np.zeros((len(df), q, 1))
@@ -85,7 +85,7 @@ def set_up_kalman_filter(p: int, q: int, d: int, xdim: int, zdim: int, data: pd.
     x0 = x0.reshape(xdim, 1)
     P0 = np.diag([P0] * xdim)
 
-    return T, Q, Z, H, x0, P0, zs, state_vars
+    return T, Q, Z, H, x0, P0, zs, state_vars, df.index
 
 
 def kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars):
@@ -109,7 +109,7 @@ def kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars):
     z = zs[0]
     zs = zs[1:]
 
-    for i in range(0, len(zs) - q - 1):
+    for i in range(0, len(zs)+1):
 
         # kalman predict step
         kfilter.predict()
@@ -125,16 +125,23 @@ def kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars):
 
         # update MA components with lagged prediction error ahead
         if q > 0:
-            residual = zs[i + 1, ma_bool_mask][0] - kfilter.x[0]
-            for iz in range(0, q):
-                zs[i + iz + 1, ma_partial_mask[iz]] = residual
+            if i + q-1 + 1 < len(zs):
+                residual = zs[i + 1, ma_bool_mask][0] - kfilter.x[0]
+                for iz in range(0, q):
+                    zs[i + iz + 1, ma_partial_mask[iz]] = residual
 
         # set nex iterations z
-        z = zs[i + 1]
+        if i + 1 < len(zs): z = zs[i + 1]
 
         X_out.append(kfilter.x)
         P_out.append(kfilter.P)
         LL_out.append(kfilter.log_likelihood)
+
+    # one time period ahead prediction
+    kfilter.predict()
+    X_pred.append(kfilter.x)
+    P_pred.append(kfilter.P)
+
 
     X_out = np.array(X_out)
     P_out = np.array(P_out)

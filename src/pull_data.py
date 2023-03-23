@@ -8,6 +8,7 @@ import os
 import time
 
 from src.utils import apply_datetime_format
+from pytickersymbols import PyTickerSymbols
 
 import streamlit as st
 
@@ -15,7 +16,7 @@ import streamlit as st
 @st.cache_data()
 def get_yf_ticker_data(tickers: list, start: str, end: str, price_kind: str = 'Adj Close') -> pd.DataFrame:
     """
-    Pull data from yahoo finance from tickers
+    Pull data from yahoo finance based of yfinance tickers
     :param tickers: list of yfinance ticker
     :param start: start date in '%Y-%m-%d' format
     :param end: end date in '%Y-%m-%d' format
@@ -40,7 +41,91 @@ def get_yf_ticker_data(tickers: list, start: str, end: str, price_kind: str = 'A
 
 
 @st.cache_data()
-def get_sp500_n_largest(n: int = 5) -> list:
+def get_index_nlargest_composits(index_name, n: int = 5) -> (list, pd.DataFrame, list, float):
+    """
+    Pull list of an index's composits market caps and return n largest composits
+    :param n: number of largest composits by market cap
+    :return: index tickers, market cap by composit, n largest composits, succes rate on pulling stock tickers
+    """
+    tickers, success = get_index_yf_tickers(index_name)
+    assert success > .7, f"Less then 70% of {index_name} composits could be retrieved"
+
+    data, counter = [], 0
+    for item in tickers:
+        # capture error on getting market cap, not recoreded for some stocks
+        try:
+            data.append(pdread.get_quote_yahoo(item)['marketCap'].values[0])
+            counter += 1
+        except Exception as e:
+            data.append(0)
+            counter += 0
+
+    df = pd.DataFrame(index=tickers, columns=['market_cap'], data=data)
+    market_cap = df.sort_values('market_cap', ascending=False)
+
+    return tickers, market_cap, market_cap.index[:n].values, counter / len(tickers)
+
+
+def get_index_yf_tickers(index_name: str) -> (list, float):
+    """
+    Get composite yfinance tickers for a given index
+    :param index_name: index name
+    :return: index composits tickers, sucess rate on pulling index composite tickers
+    """
+    tickers = []
+
+    ticker_sym = PyTickerSymbols()
+    index_tickers = list(ticker_sym.get_stocks_by_index(index_name))
+
+    counter, index_length = 0, len(index_tickers)
+    for item in index_tickers:
+        # capture error for getting yahoo ticker symbol, not recorded for some stocks
+        try:
+            tickers.append(item['symbols'][0]['yahoo'])
+            counter += 1
+        except IndexError:
+            counter += 0
+    return tickers, counter / index_length
+
+
+@st.cache_data()
+def load_csv(file_name: str, path: str, pd_dt_index: str = None, **kwargs) -> pd.DataFrame:
+    """
+    Loads csv data
+    :param file_name:
+    :param path:
+    :param pd_dt_index: if specified pandas datetime index will be assigned this frequency: "D", "W", "M"
+    :param kwargs: pass arguments to pd.read_csv e.g. index_name
+    :return: pd.DataFrame
+    """
+    df = pd.read_csv(os.path.join(path, file_name), **kwargs)
+    if pd_dt_index is not None:
+        df.index = pd.DatetimeIndex(df.index).to_period(pd_dt_index)
+    return df
+
+
+@st.cache_resource()
+def test_res_cache():
+    time.sleep(10)
+    return True
+
+
+def train_test_split(df_in: pd.DataFrame, test_size) -> (pd.DataFrame, pd.DataFrame):
+    """
+    Splits pd.DataFrame alongside axis=0 into train and test sample, assumes most
+    recent data to be located on the bottom of the df
+    :param df_in:
+    :param test_size: test size between 0 and 1
+    :return: test, train
+    """
+    df = df_in.copy()
+    test_ind = int(len(df) * test_size)
+    return df.iloc[:test_ind], df[test_ind:]
+
+
+## depracted functions
+@st.cache_data()
+def _get_sp500_n_largest(n: int = 5) -> list:
     """
     Pull list of SP 500 composits and their market cap to obtian n largest
     :param n: number of largest composits by market cap
@@ -53,27 +138,3 @@ def get_sp500_n_largest(n: int = 5) -> list:
                       data=[pdread.get_quote_yahoo(item)['marketCap'].values[0] for item in sp500_tickers])
     sp500_largest = df.sort_values('market_cap', ascending=False).index[:n].values
     return sp500_largest
-
-
-@st.cache_data()
-def load_csv(file_name: str, path: str, time_period: str = None, **kwargs) -> pd.DataFrame:
-    df = pd.read_csv(os.path.join(path, file_name), **kwargs)
-    if time_period is not None:
-        df.index = pd.DatetimeIndex(df.index).to_period(time_period)
-    return df
-
-
-@st.cache_resource()
-def test_res_cache():
-    time.sleep(10)
-    return True
-
-
-# def get_returns_of_prices(prices: pd.DatFrame):
-#     return np.log(prices / prices.shift(1)).dropna().sort_index()
-
-def train_test_split(df_in: pd.DataFrame, test_size) -> (pd.DataFrame, pd.DataFrame):
-    df = df_in.copy()
-    test_ind = int(len(df) * test_size)
-    # df['test_set'] = [*chain([False] * (len(df) - test_ind), [True] * test_ind)]
-    return df.iloc[:test_ind], df[test_ind:]
