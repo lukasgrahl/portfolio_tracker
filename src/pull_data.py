@@ -47,6 +47,10 @@ def get_index_nlargest_composits(index_name, n: int = 5) -> (list, pd.DataFrame,
     :param n: number of largest composits by market cap
     :return: index tickers, market cap by composit, n largest composits, succes rate on pulling stock tickers
     """
+
+    if n == 0:
+        return [], None, [], 1
+
     tickers, success = get_index_yf_tickers(index_name)
     assert success > .7, f"Less then 70% of {index_name} composits could be retrieved"
 
@@ -66,7 +70,7 @@ def get_index_nlargest_composits(index_name, n: int = 5) -> (list, pd.DataFrame,
     return tickers, market_cap, market_cap.index[:n].values, counter / len(tickers)
 
 
-def get_index_yf_tickers(index_name: str) -> (list, float):
+def get_index_yf_tickers(index_name: str, data_provider: str = 'yahoo') -> (list, float):
     """
     Get composite yfinance tickers for a given index
     :param index_name: index name
@@ -81,7 +85,7 @@ def get_index_yf_tickers(index_name: str) -> (list, float):
     for item in index_tickers:
         # capture error for getting yahoo ticker symbol, not recorded for some stocks
         try:
-            tickers.append(item['symbols'][0]['yahoo'])
+            tickers.append(item['symbols'][0][data_provider])
             counter += 1
         except IndexError:
             counter += 0

@@ -1,31 +1,35 @@
 import pandas as pd
 import numpy as np
-from src.pull_data import get_sp500_n_largest, get_yf_ticker_data, load_csv, train_test_split
+from src.pull_data import get_index_nlargest_composits, get_yf_ticker_data, load_csv, train_test_split
 from settings import DATA_DIR
 
 from itertools import chain
 import os
 
 if __name__ == '__main__':
+    all_indices = ['EURO STOXX 50', 'FTSE 100', 'OMX Stockholm 30', 'CAC 40', 'DAX', 'MDAX', 'TECDAX', 'IBEX 35',
+                   'S&P 500', 'DOW JONES', 'AEX', 'NASDAQ 100']
+    index_tickers = ['^STOXX50E', '^FTSE', '^OMX', '^FCHI', '^GDAXI', '^MDAXI', '^TECDAX', '^IBEX', '^GSPC', '^DJI',
+                     '^AEX', '^IXIC']
+    all_index_dict = dict(zip(all_indices, index_tickers))
+
     # user input
-    sp500_ticker = ['^GSPC']  # index yfinance ticker
-    start = '2020-01-01'
+    sel_ind = 'S&P 500'  # index yfinance ticker
+    sel_ind_ticker = [all_index_dict[sel_ind]]
+
+    start = '2015-01-01'
     end = '2022-12-31'
     test_size = .2
 
-    # pull list of sp500 composits
-    # sp500_largest = get_sp500_n_largest()
-    # np.save(os.path.join(DATA_DIR, 'sp500_largest.npy'), sp500_largest)
-    sp500_largest = np.load(os.path.join(DATA_DIR, 'sp500_largest.npy'), allow_pickle=True)
-
-    # get sp500 returns data
-    df_prices = get_yf_ticker_data([*chain(sp500_largest, sp500_ticker)], start, end)
+    # Load data
+    sel_ind_composit_tickers, _, sel_ind_nlargest_tickers, success = get_index_nlargest_composits(sel_ind, n=0)
+    print(sel_ind_composit_tickers, _, sel_ind_nlargest_tickers, success)
+    df_prices = get_yf_ticker_data([*chain(sel_ind_ticker, sel_ind_nlargest_tickers)], start, end)
+    print(df_prices.columns)
     df_prices.reset_index(names='date').to_csv(os.path.join(DATA_DIR, 'prices.csv'))
-    df = load_csv(file_name='prices.csv', path=DATA_DIR, index_name='date')
 
-    # get log returns
-    # df_rets = get_returns_of_prices(df_prices)
-    df_rets = np.log(df_prices / df_prices.shift(1)).dropna()
+    # get log return data
+    df_rets = np.log(df_prices / df_prices.shift(1)).dropna().copy()
 
     # get SP500 lead returns for prediction
     df_rets['^GSPC_lead'] = df_rets['^GSPC'].shift(1)
