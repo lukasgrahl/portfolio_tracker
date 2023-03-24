@@ -6,6 +6,7 @@ import yfinance as yf
 
 import os
 import time
+from itertools import chain
 
 from src.utils import apply_datetime_format
 from pytickersymbols import PyTickerSymbols
@@ -14,7 +15,7 @@ import streamlit as st
 
 
 @st.cache_data()
-def get_yf_ticker_data(tickers: list, start: str, end: str, price_kind: str = 'Adj Close') -> pd.DataFrame:
+def get_yf_ticker_data(tickers: list, start: str, end: str, price_kind: list = ['Adj Close']) -> pd.DataFrame:
     """
     Pull data from yahoo finance based of yfinance tickers
     :param tickers: list of yfinance ticker
@@ -29,12 +30,15 @@ def get_yf_ticker_data(tickers: list, start: str, end: str, price_kind: str = 'A
 
     for item in tickers:
         data = yf.download(item, start, end)
+        data = data.drop('Close', axis=1)
         data.columns = list([f'{item}_{x}' for x in data.columns])
         df_prices = df_prices.join(data)
 
+
     # get closing price
-    df_c = df_prices[[item for item in df_prices.columns if price_kind in item]].copy()
-    df_c.columns = [item[:-len(price_kind) - 1] for item in df_c.columns]
+    cols = [*chain.from_iterable([[item for item in df_prices.columns if price in item] for price in price_kind])]
+    df_c = df_prices[cols].copy()
+    if price_kind == ['Adj Close']: df_c.columns = [item[:-len(price_kind[0]) - 1] for item in df_c.columns]
     df_c.dropna(inplace=True)
 
     return df_c
@@ -114,17 +118,29 @@ def test_res_cache():
     return True
 
 
-def train_test_split(df_in: pd.DataFrame, test_size) -> (pd.DataFrame, pd.DataFrame):
+def train_test_split(df_in: pd.DataFrame, test_size_split: list = [.1]) -> (pd.DataFrame, pd.DataFrame):
     """
     Splits pd.DataFrame alongside axis=0 into train and test sample, assumes most
     recent data to be located on the bottom of the df
     :param df_in:
-    :param test_size: test size between 0 and 1
+    :param test_size: list splits: [.1, .1] for a 10%, 80%, 10% split
     :return: test, train
     """
+    assert sum(test_size_split) <= 1, "Test size split exceeds 1"
     df = df_in.copy()
-    test_ind = int(len(df) * test_size)
-    return df.iloc[:test_ind], df[test_ind:]
+
+    test_size_split.insert(0, 0)
+    if sum(test_size_split) < 1: test_size_split.append(1 - sum(test_size_split))
+
+    test_size_split = np.array(test_size_split) * len(df)
+    test_size_split = np.array(np.floor(test_size_split), dtype=int)
+    test_size_split = np.cumsum(test_size_split)
+
+    dfs_out = []
+    for i in range(1, len(test_size_split)):
+        dfs_out.append(df.iloc[test_size_split[i-1]: test_size_split[i]])
+
+    return tuple(dfs_out)
 
 
 ## depracted functions

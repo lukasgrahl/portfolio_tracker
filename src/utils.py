@@ -186,3 +186,26 @@ def kalman_filter(x0, P0, zs, T, Q, Z, H, ma_index: list, ar_index: list):
 
     print('true inverse', true_inv_count / (len(zs) - 1))
     return np.array(X_out), np.array(P_out), np.array(LL_out)
+
+
+def apply_intervals(x, interval_dict: dict, left_inclusive: bool = True):
+    for key, item in interval_dict.items():
+        if left_inclusive & (item[0] <= x < item[1]):
+            return key
+        elif left_inclusive & (item[0] < x <= item[1]):
+            return key
+        else:
+            continue
+
+    pass
+
+
+def printProgBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
+    perc = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {perc}% {suffix}', end=printEnd)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
+    pass
