@@ -6,21 +6,15 @@ from src.utils import train_test_split
 from sklearn.preprocessing import scale
 from src.hmm import get_index
 import matplotlib.pyplot as plt
-from src.hmm import get_hmm, get_hidden_states
+from src.hmm import get_hmm, get_hidden_states, get_hmm_features, plot_hmm_states, get_CV_data
 import seaborn as sns
-from src.hmm import plot_hmm_states
-
-
-
-
-from src.hmm import get_CV_data
 
 if __name__ == '__main__':
     # user input
     start = '2015-01-01'
     end = '2022-12-31'
-    sel_ind = 'CAC 40'
-    sel_ind_ticker = ['^FCHI']
+    sel_ind = 'OMX Stockholm 30'
+    sel_ind_ticker = ['^OMX']
 
     # pull data
     sel_ind_composit_tickers, _, sel_ind_nlargest_tickers, success = get_index_nlargest_composits(sel_ind, n=5)
@@ -31,8 +25,8 @@ if __name__ == '__main__':
     # df_prices = get_yf_ticker_data([*chain(sel_ind_ticker, sel_ind_nlargest_tickers)], start, end)
 
     # replace zero in volume cols
-    x = df_prices[df_prices['^FCHI_Volume'] == 0].index
-    df_prices.loc[x, '^FCHI_Volume'] = [1] * 56
+    x = df_prices[df_prices[f'{sel_ind_ticker[0]}_Volume'] == 0].index
+    df_prices.loc[x, f'{sel_ind_ticker[0]}_Volume'] = [1] * len(x)
 
     # get log return data
     df_rets = np.log(df_prices / df_prices.shift(1)).dropna().copy()
@@ -44,12 +38,12 @@ if __name__ == '__main__':
     data = data.join(df_prices[sel_ind_ticker].rename(columns={sel_ind_ticker[0]: f'{sel_ind_ticker[0]}_price'}))
     train, test = train_test_split(data, test_size_split=[.8])
 
-    from src.hmm import get_hmm_features
     # get cross validation and testing data
-    arr_test = np.array(get_hmm_features(test.values, sel_ind_ticker[0],
-                                         list(test.columns), list(sel_ind_nlargest_tickers)))
+    arr_test, _ = get_hmm_features(test.values, sel_ind_ticker[0],
+                                   list(test.columns), list(sel_ind_nlargest_tickers))
+    arr_test = np.array(arr_test)
     cv_train, cv_cols = get_CV_data(train.values, list(train.columns), sel_ind_ticker[0],
-                                    n_largest_stocks=list(sel_ind_nlargest_tickers), n_iterations=10_000)
+                                    n_largest_stocks=list(sel_ind_nlargest_tickers), n_iterations=2)
     # scale data
     arr_test = arr_test.transpose()
     arr_train = np.concatenate(cv_train, axis=1).transpose()
@@ -61,9 +55,10 @@ if __name__ == '__main__':
     X_test, y_test = arr_test[:, :-1], arr_test[:, -1]
 
     # train model
-    mod, hidden_states = get_hmm(X_train, y_train, n_components=3, n_int=100)
+    mod, hidden_states = get_hmm(X_train, y_train, n_components=3, n_int=1)
     states, statesg = get_hidden_states(hidden_states, y_train)
 
+    fig = plt.figure()
     for i in set(states['states']):
         plt.hist(states[states['states'] == i]['rets'], bins='fd', alpha=.6, label=i)
     plt.legend()

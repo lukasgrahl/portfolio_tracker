@@ -11,6 +11,23 @@ from pytickersymbols import PyTickerSymbols
 
 import streamlit as st
 
+import numpy as np
+@st.cache_data()
+def load_data(sel_ind, sel_ind_ticker, pull_data_start: str, pull_data_end: str, n_largest: int=5):
+    sel_ind_composit_tickers, _, sel_ind_nlargest_tickers, success = get_index_nlargest_composits(sel_ind, n=n_largest)
+    if success <= .8: st.write(f'Market cap was only available for {success * 100: .1f} %  of composits')
+    df_prices = get_yf_ticker_data(sel_ind_nlargest_tickers, pull_data_start, pull_data_end)
+    df_prices = df_prices.join(get_yf_ticker_data(sel_ind_ticker, pull_data_start, pull_data_end,
+                                                  price_kind=['Open', 'High', 'Low', 'Volume', 'Adj Close']))
+    df_prices.columns = [item if '_Adj Close' not in item else item[:-10] for item in df_prices.columns]
+
+    # replace zero in volume cols
+    x = df_prices[df_prices[f'{sel_ind_ticker[0]}_Volume'] == 0].index
+    df_prices.loc[x, f'{sel_ind_ticker[0]}_Volume'] = [1] * len(x)
+
+    # get log returns
+    df_rets = np.log(df_prices / df_prices.shift(1)).dropna().copy()
+    return df_prices, df_rets, sel_ind_nlargest_tickers
 
 @st.cache_data()
 def get_yf_ticker_data(tickers: list, start: str, end: str, price_kind: list = ['Adj Close']) -> pd.DataFrame:

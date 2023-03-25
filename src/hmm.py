@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 
 
+@st.cache_data()
 def get_hmm_features(arr: np.array, ind_ticker: str, cols_list: list, n_largest_stocks):
     x = arr[:, get_index(f'{ind_ticker}_Volume', cols_list)]
     vol_gap = np.diff(x) / x[1:]
@@ -48,10 +49,22 @@ def get_hmm_features(arr: np.array, ind_ticker: str, cols_list: list, n_largest_
         [item for item in n_largest]
     )]
 
-    return out
+    cols = [
+        *chain(
+            [
+                'volume_gap',
+                'daily_change',
+                'fract_high',
+                'fract_low',
+                'forecast_variable'
+            ],
+            n_largest_stocks
+        )
+    ]
+    return out, cols
 
 
-@st.cache_resource()
+@st.cache_data()
 def get_CV_data(data_arr: np.array, cols_list: list, ind_ticker: str, n_largest_stocks: list,
                 n_iterations: int, sample_size: tuple = (10, 30)) -> (np.array, list):
     quotes = []
@@ -71,7 +84,7 @@ def get_CV_data(data_arr: np.array, cols_list: list, ind_ticker: str, n_largest_
 
         # volume_gap
 
-        features = get_hmm_features(subset, ind_ticker, cols_list, n_largest_stocks)
+        features, cols = get_hmm_features(subset, ind_ticker, cols_list, n_largest_stocks)
 
         # append
         out_len = len(subset) - 1
@@ -84,13 +97,8 @@ def get_CV_data(data_arr: np.array, cols_list: list, ind_ticker: str, n_largest_
         *chain(
             [
                 'id',
-                'volume_gap',
-                'daily_change',
-                'fract_high',
-                'fract_low',
-                'forecast_variable'
             ],
-            n_largest_stocks
+            cols
         )
     ]
     return quotes, ret_cols
@@ -109,7 +117,7 @@ def get_hidden_states(hidden_states, y_train):
     states[:, 0] = hidden_states
     states[:, 1] = y_train
     states = pd.DataFrame(states, columns=['states', 'rets'])
-    statesg = states.groupby('states').agg({'rets': ['mean', 'std',
+    statesg = states.groupby('states').agg({'rets': ['mean', 'std', 'count',
                                                      lambda x: np.mean(x) + 1.96 * np.std(x),
                                                      lambda x: np.mean(x) - 1.96 * np.std(x)]}).rename(
         columns={'<lambda_0>': 'conf_lower',
@@ -122,25 +130,22 @@ def get_hidden_states(hidden_states, y_train):
 def plot_hmm_states(df, y_states, price_col: str, ret_col: str, date_col: str):
     states = set(list(y_states))
 
-    plt.figure(figsize=(15, 10))
-    plt.subplot(2, 1, 1)
+    fig, ax = plt.subplots(2, 1, figsize=(15, 10))
 
     for i in states:
         want = (y_states == i)
         x = df[date_col].iloc[want]
         y = df[price_col].iloc[want]
-        plt.plot(y, '.')
-    plt.legend(states, fontsize=16)
-    plt.grid(True)
-    plt.xlabel(date_col, fontsize=16)
-    plt.subplot(2, 1, 2)
+        ax[0].plot(x, y, '.')
+    ax[0].legend(states, fontsize=16)
+    ax[0].grid(True)
+    ax[0].set_xlabel(date_col, fontsize=16)
     for i in states:
         want = (y_states == i)
         x = df[date_col].iloc[want]
         y = df[ret_col].iloc[want]
-        plt.plot(y, '.')
-    plt.legend(states, fontsize=16)
-    plt.grid(True)
-    plt.xlabel("datetime", fontsize=16)
-    plt.show()
-    pass
+        ax[1].plot(x, y, '.')
+    ax[1].legend(states, fontsize=16)
+    ax[1].grid(True)
+    ax[1].set_xlabel("datetime", fontsize=16)
+    return fig
