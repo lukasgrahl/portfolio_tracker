@@ -219,6 +219,14 @@ def get_index(col: str, col_list: list):
     return col_list.index(col)
 
 
+def is_outlier(ser: pd.Series, std_factor: float = 5.):
+    mu = np.mean(ser)
+    sig = np.std(ser) * std_factor
+    int_u = mu + sig
+    int_l = mu - sig
+    return ~((ser <= int_u) & (ser >= int_l))
+
+
 def train_test_split(df_in: pd.DataFrame, test_size_split: list = [.1]) -> (pd.DataFrame, pd.DataFrame):
     """
     Splits pd.DataFrame alongside axis=0 into train and test sample, assumes most

@@ -11,7 +11,7 @@ from itertools import chain
 from datetime import datetime, timedelta
 
 from src.pull_data import load_data
-from src.utils import train_test_split
+from src.utils import train_test_split, is_outlier
 from src.filter import get_ARMA_test, set_up_kalman_filter, kalman_filter
 from src.hmm import get_hmm, get_hmm_features, get_CV_data, get_hidden_states, plot_hmm_states
 from sklearn.preprocessing import scale
@@ -38,7 +38,7 @@ if __name__ == '__main__':
         pull_data_start = "2000-01-01"
         pull_data_end = str(datetime.now().date())
 
-        df_prices, df_rets, sel_ind_nlargest_tickers = load_data(sel_ind, sel_ind_ticker, pull_data_start, pull_data_end, )
+        df_prices, df_rets, sel_ind_nlargest_tickers = load_data(sel_ind, sel_ind_ticker, pull_data_start, pull_data_end)
 
         # clear cache button
         clear_cache = st.button('Clear cache')
@@ -145,6 +145,11 @@ if __name__ == '__main__':
         data = data.join(df_rets[sel_ind_ticker[0]])
         data = data.join(df_prices[[f'{sel_ind_ticker[0]}_{item}' for item in ['High', 'Low', 'Open', 'Volume']]])
         data = data.join(df_prices[sel_ind_ticker].rename(columns={sel_ind_ticker[0]: f'{sel_ind_ticker[0]}_price'}))
+
+        # outlier selection
+        mask = is_outlier(data[sel_ind_ticker[0]])
+        data = data[~mask]
+        st.write(data[sel_ind_ticker].describe())
         train, test = train_test_split(data, test_size_split=[.8])
 
         # get cross validation and testing data
@@ -158,10 +163,13 @@ if __name__ == '__main__':
         arr_train = np.concatenate(cv_train, axis=1).transpose()
         arr_train = arr_train[:, 1:]
 
+        st.write(pd.Series(arr_train[:, -1]).describe())
         arr_train = np.column_stack([scale(arr_train[:, i]) for i in range(arr_train.shape[1])])
         arr_test = np.column_stack([scale(arr_test[:, i]) for i in range(arr_test.shape[1])])
         X_train, y_train = arr_train[:, :-1], arr_train[:, -1]
         X_test, y_test = arr_test[:, :-1], arr_test[:, -1]
+
+        st.write(pd.Series(y_train).describe())
 
         # train model
         mod, hidden_states = get_hmm(X_train, y_train, n_components=3, n_int=30)
