@@ -8,7 +8,7 @@ from datetime import timedelta
 from itertools import chain
 
 from src.filter import set_up_kalman_filter, kalman_filter, get_ARMA_test
-from src.pull_data import train_test_split
+from src.utils import train_test_split
 
 from settings import DATA_DIR
 
