@@ -41,12 +41,13 @@ if __name__ == '__main__':
     # get cross validation and testing data
     arr_test, _ = get_hmm_features(test.values, sel_ind_ticker[0],
                                    list(test.columns), list(sel_ind_nlargest_tickers))
-    arr_test = np.array(arr_test)
+    arr_test = np.array(arr_test, dtype=float)
     cv_train, cv_cols = get_CV_data(train.values, list(train.columns), sel_ind_ticker[0],
                                     n_largest_stocks=list(sel_ind_nlargest_tickers), n_iterations=2)
     # scale data
     arr_test = arr_test.transpose()
     arr_train = np.concatenate(cv_train, axis=1).transpose()
+    arr_train = arr_train.astype(float)
     arr_train = arr_train[:, 1:]
 
     arr_train = np.column_stack([scale(arr_train[:, i]) for i in range(arr_train.shape[1])])

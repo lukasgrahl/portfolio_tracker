@@ -11,7 +11,7 @@ from itertools import chain
 from datetime import datetime, timedelta
 
 from src.pull_data import load_data
-from src.utils import train_test_split, is_outlier
+from src.utils import train_test_split, is_outlier, get_index
 from src.filter import get_ARMA_test, set_up_kalman_filter, kalman_filter
 from src.hmm import get_hmm, get_hmm_features, get_CV_data, get_hidden_states, plot_hmm_states
 from sklearn.preprocessing import scale
@@ -149,30 +149,35 @@ if __name__ == '__main__':
         # outlier selection
         mask = is_outlier(data[sel_ind_ticker[0]])
         data = data[~mask]
-        st.write(data[sel_ind_ticker].describe())
         train, test = train_test_split(data, test_size_split=[.8])
 
+
+
         # get cross validation and testing data
-        arr_test, _ = get_hmm_features(test.values, sel_ind_ticker[0],
-                                             list(test.columns), list(sel_ind_nlargest_tickers))
-        arr_test = np.array(arr_test)
-        cv_train, cv_cols = get_CV_data(train.values, list(train.columns), sel_ind_ticker[0],
-                                        n_largest_stocks=list(sel_ind_nlargest_tickers), n_iterations=2_000)
+        arr_test, test_cols = get_hmm_features(test.values, sel_ind_ticker[0],
+                                               list(test.columns), list(sel_ind_nlargest_tickers))
+        arr_test = np.array(arr_test, dtype=float)
+        cv_train, train_cols = get_CV_data(train.values, list(train.columns), sel_ind_ticker[0],
+                                           n_largest_stocks=list(sel_ind_nlargest_tickers), n_iterations=5_000)
         # scale data
         arr_test = arr_test.transpose()
         arr_train = np.concatenate(cv_train, axis=1).transpose()
-        arr_train = arr_train[:, 1:]
 
-        st.write(pd.Series(arr_train[:, -1]).describe())
+        arr_train = np.delete(arr_train, get_index('id', train_cols), axis=1)
+        train_cols.remove('id')
+
         arr_train = np.column_stack([scale(arr_train[:, i]) for i in range(arr_train.shape[1])])
         arr_test = np.column_stack([scale(arr_test[:, i]) for i in range(arr_test.shape[1])])
-        X_train, y_train = arr_train[:, :-1], arr_train[:, -1]
-        X_test, y_test = arr_test[:, :-1], arr_test[:, -1]
 
-        st.write(pd.Series(y_train).describe())
+        # get train and test sets
+        X_test = arr_test[:, ~get_index('forecast_variable', test_cols, True)].copy()
+        y_test = arr_test[:, get_index('forecast_variable', test_cols, True)].copy()
+        X_train = arr_train[:, ~get_index('forecast_variable', train_cols, True)].copy()
+        y_train = arr_train[:, get_index('forecast_variable', train_cols, True)].copy()
+
 
         # train model
-        mod, hidden_states = get_hmm(X_train, y_train, n_components=3, n_int=30)
+        mod, hidden_states = get_hmm(X_train, y_train, n_components=3, n_int=50)
         states, statesg = get_hidden_states(hidden_states, y_train)
 
         st.write(statesg)
@@ -189,11 +194,10 @@ if __name__ == '__main__':
         c2.write(fig)
 
         hidden_states = mod.predict(X_test)
-        X_test = pd.DataFrame(X_test, columns=cv_cols[1:-1])
+        X_test = pd.DataFrame(X_test, columns=train_cols[:-1])
         X_test[f'{sel_ind_ticker[0]}_price'] = test[f'{sel_ind_ticker[0]}_price'].iloc[1:].values
         X_test[f'{sel_ind_ticker[0]}'] = test[f'{sel_ind_ticker[0]}'].iloc[1:].values
         X_test['date'] = list(test.index)[1:]
-        st.write(len(X_test), len(hidden_states))
         fig = plot_hmm_states(X_test, hidden_states, f'{sel_ind_ticker[0]}_price', f'{sel_ind_ticker[0]}', 'date')
         st.write('Out of sample test')
         st.write(fig)

@@ -115,7 +115,7 @@ def get_hmm(X_train, y_train, n_components: int, cov_type: str = 'full', n_int: 
 def get_hidden_states(hidden_states, y_train):
     states = np.zeros((len(y_train), 2))
     states[:, 0] = hidden_states
-    states[:, 1] = y_train
+    states[:, 1] = y_train.reshape(-1)
     states = pd.DataFrame(states, columns=['states', 'rets'])
     statesg = states.groupby('states').agg({'rets': ['mean', 'std', 'count',
                                                      lambda x: np.mean(x) + 1.96 * np.std(x),

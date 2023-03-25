@@ -215,8 +215,12 @@ def printProgBar(iteration, total, prefix='', suffix='', decimals=1, length=100,
     pass
 
 
-def get_index(col: str, col_list: list):
-    return col_list.index(col)
+def get_index(col: str, col_list: list, return_boolean: bool = False):
+    assert col in col_list, f'{col} is not in col_list'
+    if not return_boolean:
+        return col_list.index(col)
+    else:
+        return np.array([True if i == col_list.index(col) else False for i in range(0, len(col_list))])
 
 
 def is_outlier(ser: pd.Series, std_factor: float = 5.):
