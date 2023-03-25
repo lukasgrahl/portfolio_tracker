@@ -10,7 +10,8 @@ from sklearn.metrics import confusion_matrix, roc_auc_score
 from itertools import chain
 from datetime import datetime, timedelta
 
-from src.pull_data import get_yf_ticker_data, get_index_nlargest_composits, load_csv, test_res_cache
+from src.pull_data import get_yf_ticker_data, get_index_nlargest_composits, test_res_cache
+from src.utils import load_csv
 from src.filter import get_ARMA_test, set_up_kalman_filter, kalman_filter
 
 if __name__ == '__main__':
@@ -26,24 +27,24 @@ if __name__ == '__main__':
     # streamlit side bar
     with st.sidebar:
         # select index
-        sel_ind = st.selectbox('What index to analyse?', tuple(all_indices))
-        sel_ind_ticker = [all_index_dict[sel_ind]]
+        sel_ind = st.selectbox('What index to analyse?', tuple(all_indices)) # str
+        sel_ind_ticker = [all_index_dict[sel_ind]] # list
 
         # select time window
-        analysis_time = st.select_slider(
-            'How many weeks would you like the analysis to run on?',
-            options=list(range(10, 260, 10)))
+        analysis_time = st.select_slider('How many weeks would you like the analysis to run on?',
+                                         options=list(range(10, 260, 10)),
+                                         value=20)
         dt_end = datetime.now().date()
         dt_start = dt_end - timedelta(weeks=analysis_time)
         start = str(dt_start)
         end = str(dt_end)
-
         st.write(f'The analysis will run for {analysis_time} weeks from {start} to {end}')
 
+        # clear cache button
         clear_cache = st.button('Clear cache')
 
 
-    # first part
+    ##### Section 1 #####
     st.header(f'{sel_ind} price overview')
     st.write(
         f"""
@@ -51,10 +52,12 @@ if __name__ == '__main__':
             """
     )
 
-    # Load data
+    ###### Load data #########
     sel_ind_composit_tickers, _, sel_ind_nlargest_tickers, success = get_index_nlargest_composits(sel_ind, n=10)
-    st.write(f'{success} success on pulling market cap')
-    df_prices = get_yf_ticker_data([*chain(sel_ind_ticker, sel_ind_nlargest_tickers)], start, end)
+    if success <= .8: st.write(f'Market cap was only available for {success*100: .1f} %  of composits')
+    df_prices = get_yf_ticker_data(sel_ind_nlargest_tickers, start, end)
+    df_prices = df_prices.join(get_yf_ticker_data(sel_ind_ticker, start, end))
+    df_prices.columns = [item if '_Adj Close' not in item else item[:-10] for item in df_prices.columns]
 
     # get log return data
     df_rets = np.log(df_prices / df_prices.shift(1)).dropna().copy()
@@ -68,46 +71,49 @@ if __name__ == '__main__':
     df_rets[endog[0]] = df_rets[sel_ind_ticker[0]].shift(-1)
     df_rets.dropna(inplace=True)
     # get arima output
-    st.write(df_rets.head())
     p, q, d, ma_resid, arima_params = get_ARMA_test(p, q, df_rets, endog, exog)
-
-    ####### Kalman Filter #####
-    xdim = p + d + q
-    zdim = xdim
-    # set up filter
-    T, Q, Z, H, x0, P0, zs, state_vars, zs_index = set_up_kalman_filter(p, q, d, xdim, zdim, df_rets, ma_resid,
-                                                              arima_params, endog, exog)
-    # run filter
-    X_out, P_out, X_pred, P_pred, LL_out = kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars)
-
-    df_xtrue = df_rets[endog].loc[zs_index].copy()
-    ind = pd.DatetimeIndex([str(item) for item in zs_index])
-    df_xtrue = pd.DataFrame(df_xtrue.values, index=ind, columns=endog)
-    df_xfilt = pd.DataFrame(X_out[:, 0], index=ind, columns=[f'{endog[0]}_filter'])
-
-    ind = pd.DatetimeIndex([*chain([str(item) for item in zs_index], [str(datetime.now().date() + timedelta(days=1))])])
-    df_xpred = pd.DataFrame(X_pred[:, 0], index=ind, columns=[f'{endog[0]}_pred'])
-
-
-    # get performance scoring
-    conf_mat = pd.DataFrame(confusion_matrix(y_true=(df_xtrue >= 0),
-                                             y_pred=(df_xpred.iloc[:-1] >= 0)),
-                            index=['tn', 'fp'], columns=['fn', 'tp'])
-    conf_mat = conf_mat/len(df_xtrue)
-    roc_score = roc_auc_score(y_true=(df_xtrue >= 0), y_score=(df_xpred.iloc[:-1] >= 0))
 
     #### Plotting #####
     fig1 = px.line(df_prices[sel_ind_ticker].values)
-
-    # fill streamlit page
     st.plotly_chart(fig1, theme='streamlit', use_container_width=True)
 
-    ##### Part 2 ######
+    ##### Section 2 ######
     st.header('Forecasting output')
-    tab1, tab2 = st.tabs(["Kalman Filter", "ARIMA"])
-    # Kalman Filter
+    tab1, tab2, tab3 = st.tabs(["Kalman Filter", "ARIMA", "HMM"])
+
+    # Kalman filter
     with tab1:
-        # streamlit cols
+        measurement_noise = st.select_slider('Kalman Filter measurment noise', options=np.arange(0, 2.1, .1), value=.1)
+
+        ####### Kalman Filter #####
+        xdim = p + d + q
+        zdim = xdim
+        # set up filter
+        T, Q, Z, H, x0, P0, zs, state_vars, zs_index = set_up_kalman_filter(p, q, d, xdim, zdim, df_rets, ma_resid,
+                                                                            arima_params, endog, exog, measurement_noise)
+        # run filter
+        X_out, P_out, X_pred, P_pred, LL_out = kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars)
+
+        # get output as pd.DataFrame
+        df_xtrue = df_rets[endog].loc[zs_index].copy()
+        ind = pd.DatetimeIndex([str(item) for item in zs_index])
+        df_xtrue = pd.DataFrame(df_xtrue.values, index=ind, columns=endog)
+        df_xfilt = pd.DataFrame(X_out[:, 0], index=ind, columns=[f'{endog[0]}_filter'])
+
+        ind = pd.DatetimeIndex([*chain(
+            [str(item) for item in zs_index],
+            [str(datetime.now().date() + timedelta(days=1))]
+        )])
+        df_xpred = pd.DataFrame(X_pred[:, 0], index=ind, columns=[f'{endog[0]}_pred'])
+
+        # get performance scoring
+        conf_mat = pd.DataFrame(confusion_matrix(y_true=(df_xtrue >= 0),
+                                                 y_pred=(df_xpred.iloc[:-1] >= 0)),
+                                index=['tn', 'fp'], columns=['fn', 'tp'])
+        conf_mat = conf_mat / len(df_xtrue)
+        roc_score = roc_auc_score(y_true=(df_xtrue >= 0), y_score=(df_xpred.iloc[:-1] >= 0))
+
+        # Streamlit
         b1, b2 = st.columns([3, 1])
 
         b1.write('Returns chart')
@@ -125,6 +131,11 @@ if __name__ == '__main__':
     # ARIMA
     with tab2:
         st.plotly_chart(fig1, theme='streamlit', use_container_width=True)
+
+    # HMM
+    with tab3:
+        st.write('HMM model')
+
 
     # Reset cache
     if clear_cache:

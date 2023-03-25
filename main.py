@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-from src.pull_data import get_index_nlargest_composits, get_yf_ticker_data, load_csv, train_test_split
+from src.pull_data import get_index_nlargest_composits, get_yf_ticker_data
+from src.utils import train_test_split, load_csv
 from settings import DATA_DIR
 
 from itertools import chain

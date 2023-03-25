@@ -7,8 +7,9 @@ from statsmodels.tsa.arima.model import ARIMA
 from filterpy.kalman import KalmanFilter
 
 from src.utils import get_ARlags
+import streamlit as st
 
-
+@st.cache_data()
 def get_ARMA_test(p, q, train: pd.DataFrame, endog: list, exog: list):
     mod = ARIMA(endog=train[endog], exog=train[exog], order=(p, 0, q))
     res = mod.fit()
@@ -19,8 +20,8 @@ def get_ARMA_test(p, q, train: pd.DataFrame, endog: list, exog: list):
 
 
 def set_up_kalman_filter(p: int, q: int, d: int, xdim: int, zdim: int, data: pd.DataFrame,
-                         ma_resid: pd.Series, arima_params: dict, endog: list, exog: list, x0: float = .1,
-                         P0: float = .1):
+                         ma_resid: pd.Series, arima_params: dict, endog: list, exog: list,
+                         measurement_noise: float = .01, x0: float = .1, P0: float = .1):
     assert len(endog) == 1, f"The endogenous variable must be unique and cannot be {endog}"
 
     ma_resid.name = 'ma_resid'
@@ -60,7 +61,7 @@ def set_up_kalman_filter(p: int, q: int, d: int, xdim: int, zdim: int, data: pd.
     if d > 0: T = np.append([T], [exo_T], axis=1)[0]
 
     # H measurement noise
-    H = np.diag([.01] * zdim)
+    H = np.diag([measurement_noise] * zdim)
 
     # Z measurement function: measurement -> state space
     Z = np.diag([1] * zdim)

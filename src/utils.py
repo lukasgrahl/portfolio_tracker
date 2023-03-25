@@ -1,7 +1,11 @@
+import os
+
 import pandas as pd
 import numpy as np
 import datetime
 import pprint
+
+import streamlit as st
 from numba import njit
 from scipy import linalg
 
@@ -209,3 +213,48 @@ def printProgBar(iteration, total, prefix='', suffix='', decimals=1, length=100,
     if iteration == total:
         print()
     pass
+
+
+def get_index(col: str, col_list: list):
+    return col_list.index(col)
+
+
+def train_test_split(df_in: pd.DataFrame, test_size_split: list = [.1]) -> (pd.DataFrame, pd.DataFrame):
+    """
+    Splits pd.DataFrame alongside axis=0 into train and test sample, assumes most
+    recent data to be located on the bottom of the df
+    :param df_in:
+    :param test_size: list splits: [.1, .1] for a 10%, 80%, 10% split
+    :return: test, train
+    """
+    assert sum(test_size_split) <= 1, "Test size split exceeds 1"
+    df = df_in.copy()
+
+    test_size_split.insert(0, 0)
+    if sum(test_size_split) < 1: test_size_split.append(1 - sum(test_size_split))
+
+    test_size_split = np.array(test_size_split) * len(df)
+    test_size_split = np.array(np.floor(test_size_split), dtype=int)
+    test_size_split = np.cumsum(test_size_split)
+
+    dfs_out = []
+    for i in range(1, len(test_size_split)):
+        dfs_out.append(df.iloc[test_size_split[i-1]: test_size_split[i]])
+
+    return tuple(dfs_out)
+
+
+@st.cache_data()
+def load_csv(file_name: str, path: str, pd_dt_index: str = None, **kwargs) -> pd.DataFrame:
+    """
+    Loads csv data
+    :param file_name:
+    :param path:
+    :param pd_dt_index: if specified pandas datetime index will be assigned this frequency: "D", "W", "M"
+    :param kwargs: pass arguments to pd.read_csv e.g. index_name
+    :return: pd.DataFrame
+    """
+    df = pd.read_csv(os.path.join(path, file_name), **kwargs)
+    if pd_dt_index is not None:
+        df.index = pd.DatetimeIndex(df.index).to_period(pd_dt_index)
+    return df
