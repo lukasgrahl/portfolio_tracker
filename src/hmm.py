@@ -12,7 +12,7 @@ import streamlit as st
 
 
 @st.cache_data()
-def get_hmm_features(arr: np.array, ind_ticker: str, cols_list: list, n_largest_stocks):
+def get_hmm_features(arr: np.array, ind_ticker: str, lead_var: str, cols_list: list, n_largest_stocks):
     x = arr[:, get_index(f'{ind_ticker}_Volume', cols_list)]
     vol_gap = np.diff(x) / x[1:]
 
@@ -36,7 +36,7 @@ def get_hmm_features(arr: np.array, ind_ticker: str, cols_list: list, n_largest_
     n_largest = [arr[:, x[i]][1:] for i in x]
 
     # forecast_variable
-    forecast = arr[:, get_index(ind_ticker, cols_list)][1:]
+    forecast = arr[:, get_index(lead_var, cols_list)][1:]
 
     out = [*chain(
         [
@@ -65,7 +65,7 @@ def get_hmm_features(arr: np.array, ind_ticker: str, cols_list: list, n_largest_
 
 
 @st.cache_data()
-def get_CV_data(data_arr: np.array, cols_list: list, ind_ticker: str, n_largest_stocks: list,
+def get_CV_data(data_arr: np.array, cols_list: list, ind_ticker: str, lead_var: str, n_largest_stocks: list,
                 n_iterations: int, sample_size: tuple = (10, 30)) -> (np.array, list):
     quotes = []
 
@@ -84,7 +84,7 @@ def get_CV_data(data_arr: np.array, cols_list: list, ind_ticker: str, n_largest_
 
         # volume_gap
 
-        features, cols = get_hmm_features(subset, ind_ticker, cols_list, n_largest_stocks)
+        features, cols = get_hmm_features(subset, ind_ticker, lead_var, cols_list, n_largest_stocks)
 
         # append
         out_len = len(subset) - 1

@@ -8,7 +8,7 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix, roc_auc_score
 
 from itertools import chain
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 from src.pull_data import load_data
 from src.utils import train_test_split, is_outlier, get_index
@@ -17,6 +17,7 @@ from src.hmm import get_hmm, get_hmm_features, get_CV_data, get_hidden_states, p
 from sklearn.preprocessing import scale
 
 if __name__ == '__main__':
+
     # streamlit setup
     st.set_page_config(page_title='A binary guide to the S&P 500', layout='wide')
 
@@ -31,27 +32,30 @@ if __name__ == '__main__':
     # streamlit side bar
     with st.sidebar:
         # select index
-        sel_ind = st.selectbox('What index to analyse?', tuple(all_indices)) # str
-        sel_ind_ticker = [all_index_dict[sel_ind]] # list
+        SEL_IND = st.selectbox('What index to analyse?', tuple(all_indices)) # str
+        SEL_IND_TICKER = [all_index_dict[SEL_IND]] # list
+
+        pull_data_start = st.date_input("Choose a start data for the following analysis", date(2020, 5,1))
 
         #### Load Data #####
-        pull_data_start = "2000-01-01"
+        pull_data_start = str(pull_data_start)
         pull_data_end = str(datetime.now().date())
 
-        df_prices, df_rets, sel_ind_nlargest_tickers = load_data(sel_ind, sel_ind_ticker, pull_data_start, pull_data_end)
+        DF_PRICES, DF_RETS, SEL_IND_NLARGEST_TICKERS, LEAD_NAME = load_data(SEL_IND, SEL_IND_TICKER,
+                                                                            pull_data_start, pull_data_end)
 
         # clear cache button
         clear_cache = st.button('Clear cache')
 
     ##### Section 1 #####
-    st.header(f'{sel_ind} price overview')
+    st.header(f'{SEL_IND} price overview')
     st.write(
         f"""
             The past daily prices from {pull_data_start} to {pull_data_end}
             """
     )
     #### Plotting #####
-    fig1 = px.line(df_prices[sel_ind_ticker].values)
+    fig1 = px.line(DF_PRICES.reset_index(), y=SEL_IND_TICKER[0], x='index')
     st.plotly_chart(fig1, theme='streamlit', use_container_width=True)
 
     ##### Section 2 ######
@@ -68,25 +72,20 @@ if __name__ == '__main__':
                                          value=20)
         dt_end = datetime.now().date()
         dt_start = dt_end - timedelta(weeks=analysis_time)
-        start = str(dt_start)
-        end = str(dt_end)
-        st.write(f'The analysis will run for {analysis_time} weeks from {start} to {end}')
+        str_start, str_end = str(dt_start), str(dt_end)
+        st.write(f'The analysis will run for {analysis_time} weeks from {str_start} to {str_end}')
 
         # set chosen observation time
-        df_prices_sel = df_prices.loc[start:end]
-        df_rets_sel = np.log(df_prices_sel / df_prices_sel.shift(1)).dropna().copy()
+        df_prices_sel = DF_PRICES.loc[str_start:str_end]
+        df_rets_sel = DF_RETS[str_start: str_end]
 
         ###### ARIMA #########
-        endog = [f'{sel_ind_ticker[0]}_lead']
-        exog = sel_ind_nlargest_tickers.copy()
+        endog = [LEAD_NAME]
+        exog = SEL_IND_NLARGEST_TICKERS.copy()
         p, q = 3, 1
 
-        # get index lead returns for prediction
-        df_rets_sel[endog[0]] = df_rets_sel[sel_ind_ticker[0]].shift(-1)
-        df_rets_sel.dropna(inplace=True)
         # get arima output
         p, q, d, ma_resid, arima_params = get_ARMA_test(p, q, df_rets_sel, endog, exog)
-
 
         ####### Kalman Filter #####
         xdim = p + d + q
@@ -112,7 +111,7 @@ if __name__ == '__main__':
         # get performance scoring
         conf_mat = pd.DataFrame(confusion_matrix(y_true=(df_xtrue >= 0),
                                                  y_pred=(df_xpred.iloc[:-1] >= 0)),
-                                index=['tn', 'fp'], columns=['fn', 'tp'])
+                                index=['negative', 'positive'], columns=['true', 'false'])
         conf_mat = conf_mat / len(df_xtrue)
         roc_score = roc_auc_score(y_true=(df_xtrue >= 0), y_score=(df_xpred.iloc[:-1] >= 0))
 
@@ -138,27 +137,31 @@ if __name__ == '__main__':
     # HMM
     with tab3:
         st.write('HMM model')
-        c1, c2 = st.columns([1, 1])
+        c1, c2, c3 = st.columns([1, 1, 1])
+        d1, d2 = st.columns([1, 1])
+
+        hmm_states = c1.select_slider("How HMM states", range(1, 6), value=3)
+        cv_samples = c2.select_slider("How many cross validation samples", range(1_000, 51_000, 1_000), value=2_000)
+        hmm_init = c3.select_slider("HMM start init", range(10, 110, 10), value=20)
 
         # get data for CV
-        data = df_rets.drop([item for item in df_rets.columns if sel_ind_ticker[0] in item], axis=1).copy()
-        data = data.join(df_rets[sel_ind_ticker[0]])
-        data = data.join(df_prices[[f'{sel_ind_ticker[0]}_{item}' for item in ['High', 'Low', 'Open', 'Volume']]])
-        data = data.join(df_prices[sel_ind_ticker].rename(columns={sel_ind_ticker[0]: f'{sel_ind_ticker[0]}_price'}))
+        data = DF_RETS.drop([item for item in DF_RETS.columns if SEL_IND_TICKER[0] in item], axis=1).copy()
+        data = data.join(DF_RETS[[SEL_IND_TICKER[0], LEAD_NAME]])
+        data = data.join(DF_PRICES[[f'{SEL_IND_TICKER[0]}_{item}' for item in ['High', 'Low', 'Open', 'Volume']]])
+        data = data.join(DF_PRICES[SEL_IND_TICKER].rename(columns={SEL_IND_TICKER[0]: f'{SEL_IND_TICKER[0]}_price'}))
 
         # outlier selection
-        mask = is_outlier(data[sel_ind_ticker[0]])
+        mask = is_outlier(data[LEAD_NAME])
         data = data[~mask]
         train, test = train_test_split(data, test_size_split=[.8])
 
-
-
         # get cross validation and testing data
-        arr_test, test_cols = get_hmm_features(test.values, sel_ind_ticker[0],
-                                               list(test.columns), list(sel_ind_nlargest_tickers))
+        arr_test, test_cols = get_hmm_features(arr=test.values, ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
+                                               cols_list=list(test.columns), n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
         arr_test = np.array(arr_test, dtype=float)
-        cv_train, train_cols = get_CV_data(train.values, list(train.columns), sel_ind_ticker[0],
-                                           n_largest_stocks=list(sel_ind_nlargest_tickers), n_iterations=5_000)
+        cv_train, train_cols = get_CV_data(data_arr=train.values, cols_list=list(train.columns),
+                                           ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
+                                           n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS), n_iterations=cv_samples)
         # scale data
         arr_test = arr_test.transpose()
         arr_train = np.concatenate(cv_train, axis=1).transpose()
@@ -166,19 +169,20 @@ if __name__ == '__main__':
         arr_train = np.delete(arr_train, get_index('id', train_cols), axis=1)
         train_cols.remove('id')
 
-        arr_train = np.column_stack([scale(arr_train[:, i]) for i in range(arr_train.shape[1])])
-        arr_test = np.column_stack([scale(arr_test[:, i]) for i in range(arr_test.shape[1])])
+        arr_train_s = np.column_stack([scale(arr_train[:, i]) for i in range(arr_train.shape[1])])
+        arr_test_s = np.column_stack([scale(arr_test[:, i]) for i in range(arr_test.shape[1])])
 
         # get train and test sets
-        X_test = arr_test[:, ~get_index('forecast_variable', test_cols, True)].copy()
-        y_test = arr_test[:, get_index('forecast_variable', test_cols, True)].copy()
-        X_train = arr_train[:, ~get_index('forecast_variable', train_cols, True)].copy()
-        y_train = arr_train[:, get_index('forecast_variable', train_cols, True)].copy()
+        X_test = arr_test_s[:, ~get_index('forecast_variable', test_cols, True)].copy()
+        y_test = arr_test_s[:, get_index('forecast_variable', test_cols, True)].copy()
+        X_train = arr_train_s[:, ~get_index('forecast_variable', train_cols, True)].copy()
+        y_train = arr_train_s[:, get_index('forecast_variable', train_cols, True)].copy()
 
 
         # train model
-        mod, hidden_states = get_hmm(X_train, y_train, n_components=3, n_int=50)
-        states, statesg = get_hidden_states(hidden_states, y_train)
+        mod, hidden_states = get_hmm(X_train, y_train, n_components=hmm_states, n_int=hmm_init)
+        states, statesg = get_hidden_states(hidden_states, arr_train[:, get_index('forecast_variable',
+                                                                                  train_cols, True)])
 
         st.write(statesg)
 
@@ -186,19 +190,22 @@ if __name__ == '__main__':
         for i in set(states['states']):
             plt.hist(states[states['states'] == i]['rets'], bins='fd', alpha=.6, label=i)
         plt.legend()
-        c1.write(fig)
+        d1.write(fig)
 
         fig = plt.figure()
         sns.violinplot(states, x='states', y='rets')
         plt.plot([-1, 0, 1, 2, 3], [0, 0, 0, 0, 0], color='black')
-        c2.write(fig)
+        d2.write(fig)
+
+        # fig = px.violin(states, x='states', y='rets')
+        # d3.write(fig)
 
         hidden_states = mod.predict(X_test)
         X_test = pd.DataFrame(X_test, columns=train_cols[:-1])
-        X_test[f'{sel_ind_ticker[0]}_price'] = test[f'{sel_ind_ticker[0]}_price'].iloc[1:].values
-        X_test[f'{sel_ind_ticker[0]}'] = test[f'{sel_ind_ticker[0]}'].iloc[1:].values
+        X_test[f'{SEL_IND_TICKER[0]}_price'] = test[f'{SEL_IND_TICKER[0]}_price'].iloc[1:].values
+        X_test[f'{SEL_IND_TICKER[0]}'] = test[f'{SEL_IND_TICKER[0]}'].iloc[1:].values
         X_test['date'] = list(test.index)[1:]
-        fig = plot_hmm_states(X_test, hidden_states, f'{sel_ind_ticker[0]}_price', f'{sel_ind_ticker[0]}', 'date')
+        fig = plot_hmm_states(X_test, hidden_states, f'{SEL_IND_TICKER[0]}_price', f'{SEL_IND_TICKER[0]}', 'date')
         st.write('Out of sample test')
         st.write(fig)
 

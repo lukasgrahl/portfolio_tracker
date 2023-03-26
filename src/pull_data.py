@@ -27,7 +27,12 @@ def load_data(sel_ind, sel_ind_ticker, pull_data_start: str, pull_data_end: str,
 
     # get log returns
     df_rets = np.log(df_prices / df_prices.shift(1)).dropna().copy()
-    return df_prices, df_rets, sel_ind_nlargest_tickers
+
+    # get lead variable
+    lead_name = f'{sel_ind_ticker[0]}_lead'
+    df_rets[lead_name] = df_rets[sel_ind_ticker[0]].shift(-1)
+    df_rets = df_rets.dropna()
+    return df_prices, df_rets, sel_ind_nlargest_tickers, lead_name
 
 @st.cache_data()
 def get_yf_ticker_data(tickers: list, start: str, end: str, price_kind: list = ['Adj Close']) -> pd.DataFrame:
