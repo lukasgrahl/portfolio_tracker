@@ -4,14 +4,14 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from random import randint
 from itertools import chain
+from copy import deepcopy
 
 from sklearn.mixture import GaussianMixture
 from src.utils import get_index, printProgBar
 
-
-
 @st.cache_resource()
 def get_hmm_features(arr: np.array, ind_ticker: str, lead_var: str, cols_list: list, n_largest_stocks):
+    arr = deepcopy(arr)
     x = arr[:, get_index(f'{ind_ticker}_Volume', cols_list)]
     vol_gap = np.diff(x) / x[1:]
 
@@ -37,7 +37,7 @@ def get_hmm_features(arr: np.array, ind_ticker: str, lead_var: str, cols_list: l
     # forecast_variable
     forecast = arr[:, get_index(lead_var, cols_list)][1:]
 
-    out = [*chain(
+    ret = [*chain(
         [
             vol_gap,
             d_change,
@@ -60,7 +60,7 @@ def get_hmm_features(arr: np.array, ind_ticker: str, lead_var: str, cols_list: l
             n_largest_stocks
         )
     ]
-    return out, cols
+    return ret, cols
 
 
 @st.cache_resource()
@@ -73,33 +73,18 @@ def get_CV_data(data_arr: np.array, cols_list: list, ind_ticker: str, lead_var: 
 
         # random sample len
         sample_len = randint(sample_size[0], sample_size[1])
-        # random sample start
         sample_start = randint(0, len(data_arr) - sample_len)
-        subset = data_arr[sample_start: sample_start + sample_len]
+        subset = deepcopy(data_arr[sample_start: sample_start + sample_len])
 
         # generate features
-        # close_date
-        # close_date = np.max(subset[:, get_index('date', cols_list)])
-
-        # volume_gap
-
         features, cols = get_hmm_features(subset, ind_ticker, lead_var, cols_list, n_largest_stocks)
-
-        # append
-        out_len = len(subset) - 1
-        features.insert(0, [i] * out_len)
+        assert cols == cols, 'get_hmm_feature cols have changed'
         out = np.array(features, dtype='object')
         quotes.append(out)
 
     # user defined, depending on
-    ret_cols = [
-        *chain(
-            [
-                'id',
-            ],
-            cols
-        )
-    ]
+    ret_cols = deepcopy(cols)
+
     return quotes, ret_cols
 
 
@@ -156,8 +141,8 @@ def plot_hmm_states(df, y_states, price_col: str, ret_col: str, date_col: str, i
         x_test = df[date_col].iloc[want_test]
         y_test = df[ret_col].iloc[want_test]
 
-        ax[0].plot(x_train, y_train, '.')
-        ax[0].plot(x_test, y_test, "D")
+        ax[1].plot(x_train, y_train, '.')
+        ax[1].plot(x_test, y_test, "D")
 
     ax[1].legend(states, fontsize=16)
     ax[1].grid(True)

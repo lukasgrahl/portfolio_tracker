@@ -141,7 +141,7 @@ if __name__ == '__main__':
         d1, d2 = st.columns([1, 1])
 
         hmm_states = c1.select_slider("How HMM states", range(1, 6), value=3)
-        cv_samples = c2.select_slider("How many cross validation samples", range(1_000, 51_000, 1_000), value=2_000)
+        cv_samples = c2.select_slider("How many cross validation samples", range(1_000, 51_000, 1_000), value=1_000)
         hmm_init = c3.select_slider("HMM start init", range(10, 110, 10), value=20)
 
         # get data for CV
@@ -155,7 +155,7 @@ if __name__ == '__main__':
         data = data[~mask]
         train, test = train_test_split(data, test_size_split=[.8])
 
-        # get cross validation and testing data
+        # get test data
         arr_test, test_cols = get_hmm_features(arr=test.values, ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
                                                cols_list=list(test.columns),
                                                n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
@@ -163,18 +163,24 @@ if __name__ == '__main__':
                                                  cols_list=list(train.columns),
                                                  n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
         arr_test = np.array(arr_test, dtype=float)
+        arr_test = arr_test.transpose()
+
+        # get train data
+        arr_train, train_cols = get_hmm_features(arr=train.values, ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
+                                                 cols_list=list(train.columns),
+                                                 n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
+
         arr_train = np.array(arr_train, dtype=float)
+        arr_train = arr_train.transpose()
+
+        # get cross validation train data
         arr_train_cv, train_cols_cv = get_CV_data(data_arr=train.values, cols_list=list(train.columns),
                                                   ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
                                                   n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS),
                                                   n_iterations=cv_samples)
-        # scale data
-        arr_test = arr_test.transpose()
-        arr_train = arr_train.transpose()
-        arr_train_cv = np.concatenate(arr_train_cv, axis=1).transpose()
-
-        arr_train_cv = np.delete(arr_train_cv, get_index('id', train_cols_cv), axis=1)
-        train_cols_cv.remove('id')
+        st.write(([item for item in arr_train_cv if len(item) == 11]))
+        arr_train_cv = np.concatenate(arr_train_cv, axis=1)
+        arr_train_cv = arr_train_cv.transpose()
 
         arr_train_cv_s = np.column_stack([scale(arr_train_cv[:, i]) for i in range(arr_train_cv.shape[1])])
         arr_train_s = np.column_stack([scale(arr_train[:, i]) for i in range(arr_train.shape[1])])
