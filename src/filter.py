@@ -9,6 +9,7 @@ from filterpy.kalman import KalmanFilter
 from src.utils import get_ARlags
 import streamlit as st
 
+
 @st.cache_data()
 def get_ARMA_test(p, q, train: pd.DataFrame, endog: list, exog: list):
     mod = ARIMA(endog=train[endog], exog=train[exog], order=(p, 0, q))
@@ -110,7 +111,7 @@ def kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars):
     z = zs[0]
     zs = zs[1:]
 
-    for i in range(0, len(zs)+1):
+    for i in range(0, len(zs) + 1):
 
         # kalman predict step
         kfilter.predict()
@@ -126,7 +127,7 @@ def kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars):
 
         # update MA components with lagged prediction error ahead
         if q > 0:
-            if i + q-1 + 1 < len(zs):
+            if i + q - 1 + 1 < len(zs):
                 residual = zs[i + 1, ma_bool_mask][0] - kfilter.x[0]
                 for iz in range(0, q):
                     zs[i + iz + 1, ma_partial_mask[iz]] = residual
@@ -142,7 +143,6 @@ def kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars):
     kfilter.predict()
     X_pred.append(kfilter.x)
     P_pred.append(kfilter.P)
-
 
     X_out = np.array(X_out)
     P_out = np.array(P_out)

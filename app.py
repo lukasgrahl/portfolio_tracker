@@ -35,7 +35,7 @@ if __name__ == '__main__':
         SEL_IND = st.selectbox('What index to analyse?', tuple(all_indices)) # str
         SEL_IND_TICKER = [all_index_dict[SEL_IND]] # list
 
-        pull_data_start = st.date_input("Choose a start data for the following analysis", date(2020, 5,1))
+        pull_data_start = st.date_input("Choose a start data for the following analysis", date(2017, 5,1))
 
         #### Load Data #####
         pull_data_start = str(pull_data_start)
