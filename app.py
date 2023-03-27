@@ -24,18 +24,17 @@ if __name__ == '__main__':
     # currently supported indices
     all_indices = ['EURO STOXX 50', 'FTSE 100', 'OMX Stockholm 30', 'CAC 40', 'DAX', 'MDAX', 'TECDAX', 'IBEX 35',
                    'S&P 500', 'DOW JONES', 'AEX', 'NASDAQ 100']
-    index_tickers = ['^STOXX50E', '^FTSE', '^OMX', '^FCHI', '^GDAXI', '^MDAXI', '^TECDAX', '^IBEX', '^GSPC', '^DJI', '^AEX', '^IXIC']
+    index_tickers = ['^STOXX50E', '^FTSE', '^OMX', '^FCHI', '^GDAXI', '^MDAXI', '^TECDAX', '^IBEX', '^GSPC', '^DJI',
+                     '^AEX', '^IXIC']
     all_index_dict = dict(zip(all_indices, index_tickers))
-
-
 
     # streamlit side bar
     with st.sidebar:
         # select index
-        SEL_IND = st.selectbox('What index to analyse?', tuple(all_indices)) # str
-        SEL_IND_TICKER = [all_index_dict[SEL_IND]] # list
+        SEL_IND = st.selectbox('What index to analyse?', tuple(all_indices))  # str
+        SEL_IND_TICKER = [all_index_dict[SEL_IND]]  # list
 
-        pull_data_start = st.date_input("Choose a start data for the following analysis", date(2017, 5,1))
+        pull_data_start = st.date_input("Choose a start data for the following analysis", date(2017, 5, 1))
 
         #### Load Data #####
         pull_data_start = str(pull_data_start)
@@ -92,7 +91,8 @@ if __name__ == '__main__':
         zdim = xdim
         # set up filter
         T, Q, Z, H, x0, P0, zs, state_vars, zs_index = set_up_kalman_filter(p, q, d, xdim, zdim, df_rets_sel, ma_resid,
-                                                                            arima_params, endog, exog, measurement_noise)
+                                                                            arima_params, endog, exog,
+                                                                            measurement_noise)
         # run filter
         X_out, P_out, X_pred, P_pred, LL_out = kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars)
 
@@ -157,7 +157,8 @@ if __name__ == '__main__':
 
         # get cross validation and testing data
         arr_test, test_cols = get_hmm_features(arr=test.values, ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
-                                               cols_list=list(test.columns), n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
+                                               cols_list=list(test.columns),
+                                               n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
         arr_test = np.array(arr_test, dtype=float)
         cv_train, train_cols = get_CV_data(data_arr=train.values, cols_list=list(train.columns),
                                            ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
@@ -178,12 +179,10 @@ if __name__ == '__main__':
         X_train = arr_train_s[:, ~get_index('forecast_variable', train_cols, True)].copy()
         y_train = arr_train_s[:, get_index('forecast_variable', train_cols, True)].copy()
 
-
         # train model
-        mod, hidden_states = get_hmm(X_train, y_train, n_components=hmm_states, n_int=hmm_init)
-        states, statesg = get_hidden_states(hidden_states, arr_train[:, get_index('forecast_variable',
-                                                                                  train_cols, True)])
-
+        mod, train_states = get_hmm(X_train, y_train, n_components=hmm_states, n_int=hmm_init)
+        states, statesg = get_hidden_states(train_states, arr_train[:, get_index('forecast_variable',
+                                                                                 train_cols, True)])
         st.write(statesg)
 
         fig = plt.figure()
@@ -200,14 +199,22 @@ if __name__ == '__main__':
         # fig = px.violin(states, x='states', y='rets')
         # d3.write(fig)
 
-        hidden_states = mod.predict(X_test)
-        X_test = pd.DataFrame(X_test, columns=train_cols[:-1])
-        X_test[f'{SEL_IND_TICKER[0]}_price'] = test[f'{SEL_IND_TICKER[0]}_price'].iloc[1:].values
-        X_test[f'{SEL_IND_TICKER[0]}'] = test[f'{SEL_IND_TICKER[0]}'].iloc[1:].values
-        X_test['date'] = list(test.index)[1:]
-        fig = plot_hmm_states(X_test, hidden_states, f'{SEL_IND_TICKER[0]}_price', f'{SEL_IND_TICKER[0]}', 'date')
+        test_states = mod.predict(X_test)
+        X_test_df = pd.DataFrame(X_test, columns=train_cols[:-1])
+        X_test_df[f'{SEL_IND_TICKER[0]}_price'] = test[f'{SEL_IND_TICKER[0]}_price'].iloc[1:].values
+        X_test_df[f'{SEL_IND_TICKER[0]}'] = test[f'{SEL_IND_TICKER[0]}'].iloc[1:].values
+        X_test_df['date'] = list(test.index)[1:]
+
+        fig = plot_hmm_states(X_test, test_states, f'{SEL_IND_TICKER[0]}_price', f'{SEL_IND_TICKER[0]}', 'date')
         st.write('Out of sample test')
         st.write(fig)
+
+        X_train_df = pd.DataFrame(X_train, columns=train_cols[:-1])
+        X_train_df[f'{SEL_IND_TICKER[0]}_price'] = train[f'{SEL_IND_TICKER[0]}_price'].iloc[1:].values
+        X_train_df[f'{SEL_IND_TICKER[0]}'] = train[f'{SEL_IND_TICKER[0]}'].iloc[1:].values
+        X_train_df['date'] = list(train.index)[1:]
+
+        fig = plot_hmm_states(X_train_df, train_states, f'{SEL_IND_TICKER[0]}_price', f'{SEL_IND_TICKER[0]}', 'date')
 
     # Reset cache
     if clear_cache:
