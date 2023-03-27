@@ -63,6 +63,7 @@ def get_ARlags(ser: pd.Series, lags: int, suffix: str = 'lag', ret_org_ser: bool
     if not ret_org_ser: df.drop(col, axis=1, inplace=True)
     return df.dropna()
 
+
 def printProgBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
     perc = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)
@@ -94,6 +95,7 @@ def train_test_split(df_in: pd.DataFrame, test_size_split: list = [.1]) -> (pd.D
     """
     Splits pd.DataFrame alongside axis=0 into train and test sample, assumes most
     recent data to be located on the bottom of the df
+    :param test_size_split:
     :param df_in:
     :param test_size: list splits: [.1, .1] for a 10%, 80%, 10% split
     :return: test, train
@@ -110,6 +112,6 @@ def train_test_split(df_in: pd.DataFrame, test_size_split: list = [.1]) -> (pd.D
 
     dfs_out = []
     for i in range(1, len(test_size_split)):
-        dfs_out.append(df.iloc[test_size_split[i-1]: test_size_split[i]])
+        dfs_out.append(df.iloc[test_size_split[i - 1]: test_size_split[i]])
 
     return tuple(dfs_out)
