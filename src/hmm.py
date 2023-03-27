@@ -142,8 +142,8 @@ def plot_hmm_states(df, y_states, price_col: str, ret_col: str, date_col: str, i
         x_test = df[date_col].iloc[want_test]
         y_test = df[ret_col].iloc[want_test]
 
-        ax[0].plot(x_train, y_train, '.')
-        ax[0].plot(x_test, y_test, "D")
+        ax[1].plot(x_train, y_train, '.')
+        ax[1].plot(x_test, y_test, "D")
 
     ax[1].legend(states, fontsize=16)
     ax[1].grid(True)
