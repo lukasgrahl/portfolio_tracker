@@ -1,17 +1,16 @@
+import streamlit as st
+import numpy as np
 import pandas as pd
+
 import pandas_datareader as pdread
-from yahoo_fin import stock_info as ysi
 import yfinance as yf
 
-import time
 from itertools import chain
 
 from src.utils import apply_datetime_format
 from pytickersymbols import PyTickerSymbols
 
-import streamlit as st
 
-import numpy as np
 @st.cache_data()
 def load_data(sel_ind, sel_ind_ticker, pull_data_start: str, pull_data_end: str, n_largest: int=5):
     sel_ind_composit_tickers, _, sel_ind_nlargest_tickers, success = get_index_nlargest_composits(sel_ind, n=n_largest)
@@ -114,26 +113,3 @@ def get_index_yf_tickers(index_name: str, data_provider: str = 'yahoo') -> (list
         except IndexError:
             counter += 0
     return tickers, counter / index_length
-
-
-@st.cache_resource()
-def test_res_cache():
-    time.sleep(10)
-    return True
-
-
-## depracted functions
-@st.cache_data()
-def _get_sp500_n_largest(n: int = 5) -> list:
-    """
-    Pull list of SP 500 composits and their market cap to obtian n largest
-    :param n: number of largest composits by market cap
-    :return: list n yfinance tickers
-    """
-    # get sp500 composits & market cap
-    sp500_tickers = ysi.tickers_sp500()
-    df = pd.DataFrame(index=sp500_tickers,
-                      columns=['market_cap'],
-                      data=[pdread.get_quote_yahoo(item)['marketCap'].values[0] for item in sp500_tickers])
-    sp500_largest = df.sort_values('market_cap', ascending=False).index[:n].values
-    return sp500_largest

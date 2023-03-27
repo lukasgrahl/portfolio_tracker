@@ -1,14 +1,13 @@
 import numpy as np
-
-from src.utils import printProgBar
+import pandas as pd
+import matplotlib.pyplot as plt
+import streamlit as st
 from random import randint
 from itertools import chain
 
 from sklearn.mixture import GaussianMixture
-import pandas as pd
-from src.utils import get_index
-import matplotlib.pyplot as plt
-import streamlit as st
+from src.utils import get_index, printProgBar
+
 
 
 @st.cache_data()
