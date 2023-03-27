@@ -159,30 +159,41 @@ if __name__ == '__main__':
         arr_test, test_cols = get_hmm_features(arr=test.values, ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
                                                cols_list=list(test.columns),
                                                n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
+        arr_train, train_cols = get_hmm_features(arr=train.values, ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
+                                                 cols_list=list(train.columns),
+                                                 n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
         arr_test = np.array(arr_test, dtype=float)
-        cv_train, train_cols = get_CV_data(data_arr=train.values, cols_list=list(train.columns),
-                                           ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
-                                           n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS), n_iterations=cv_samples)
+        arr_train = np.array(arr_train, dtype=float)
+        arr_train_cv, train_cols_cv = get_CV_data(data_arr=train.values, cols_list=list(train.columns),
+                                                  ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
+                                                  n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS),
+                                                  n_iterations=cv_samples)
         # scale data
         arr_test = arr_test.transpose()
-        arr_train = np.concatenate(cv_train, axis=1).transpose()
+        arr_train = arr_train.transpose()
+        arr_train_cv = np.concatenate(arr_train_cv, axis=1).transpose()
 
-        arr_train = np.delete(arr_train, get_index('id', train_cols), axis=1)
-        train_cols.remove('id')
+        arr_train_cv = np.delete(arr_train_cv, get_index('id', train_cols_cv), axis=1)
+        train_cols_cv.remove('id')
 
+        arr_train_cv_s = np.column_stack([scale(arr_train_cv[:, i]) for i in range(arr_train_cv.shape[1])])
         arr_train_s = np.column_stack([scale(arr_train[:, i]) for i in range(arr_train.shape[1])])
         arr_test_s = np.column_stack([scale(arr_test[:, i]) for i in range(arr_test.shape[1])])
 
         # get train and test sets
         X_test = arr_test_s[:, ~get_index('forecast_variable', test_cols, True)].copy()
         y_test = arr_test_s[:, get_index('forecast_variable', test_cols, True)].copy()
+
         X_train = arr_train_s[:, ~get_index('forecast_variable', train_cols, True)].copy()
         y_train = arr_train_s[:, get_index('forecast_variable', train_cols, True)].copy()
 
+        X_train_cv = arr_train_cv_s[:, ~get_index('forecast_variable', train_cols_cv, True)].copy()
+        y_train_cv = arr_train_cv_s[:, get_index('forecast_variable', train_cols_cv, True)].copy()
+
         # train model
-        mod, train_states = get_hmm(X_train, y_train, n_components=hmm_states, n_int=hmm_init)
-        states, statesg = get_hidden_states(train_states, arr_train[:, get_index('forecast_variable',
-                                                                                 train_cols, True)])
+        mod, train_cv_states = get_hmm(X_train_cv, y_train_cv, n_components=hmm_states, n_int=hmm_init)
+        states, statesg = get_hidden_states(train_cv_states, arr_train_cv[:, get_index('forecast_variable',
+                                                                                       train_cols_cv, True)])
         st.write(statesg)
 
         fig = plt.figure()
@@ -200,21 +211,24 @@ if __name__ == '__main__':
         # d3.write(fig)
 
         test_states = mod.predict(X_test)
-        X_test_df = pd.DataFrame(X_test, columns=train_cols[:-1])
+        X_test_df = pd.DataFrame(X_test, columns=train_cols_cv[:-1])
         X_test_df[f'{SEL_IND_TICKER[0]}_price'] = test[f'{SEL_IND_TICKER[0]}_price'].iloc[1:].values
         X_test_df[f'{SEL_IND_TICKER[0]}'] = test[f'{SEL_IND_TICKER[0]}'].iloc[1:].values
         X_test_df['date'] = list(test.index)[1:]
+        X_test_df['is_test'] = [True] * len(X_test_df)
 
-        fig = plot_hmm_states(X_test, test_states, f'{SEL_IND_TICKER[0]}_price', f'{SEL_IND_TICKER[0]}', 'date')
-        st.write('Out of sample test')
-        st.write(fig)
-
+        train_states = mod.predict(X_train)
         X_train_df = pd.DataFrame(X_train, columns=train_cols[:-1])
         X_train_df[f'{SEL_IND_TICKER[0]}_price'] = train[f'{SEL_IND_TICKER[0]}_price'].iloc[1:].values
         X_train_df[f'{SEL_IND_TICKER[0]}'] = train[f'{SEL_IND_TICKER[0]}'].iloc[1:].values
         X_train_df['date'] = list(train.index)[1:]
+        X_train_df['is_test'] = [False] * len(X_train_df)
 
-        fig = plot_hmm_states(X_train_df, train_states, f'{SEL_IND_TICKER[0]}_price', f'{SEL_IND_TICKER[0]}', 'date')
+        fig = plot_hmm_states(pd.concat([X_train_df, X_test_df], axis=0),
+                              np.concatenate([train_states, test_states], axis=0),
+                              f'{SEL_IND_TICKER[0]}_price', f'{SEL_IND_TICKER[0]}', 'date', 'is_test')
+        st.write('Out of sample test')
+        st.write(fig)
 
     # Reset cache
     if clear_cache:

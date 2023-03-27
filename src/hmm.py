@@ -10,7 +10,7 @@ from src.utils import get_index, printProgBar
 
 
 
-@st.cache_data()
+@st.cache_resource()
 def get_hmm_features(arr: np.array, ind_ticker: str, lead_var: str, cols_list: list, n_largest_stocks):
     x = arr[:, get_index(f'{ind_ticker}_Volume', cols_list)]
     vol_gap = np.diff(x) / x[1:]
@@ -63,7 +63,7 @@ def get_hmm_features(arr: np.array, ind_ticker: str, lead_var: str, cols_list: l
     return out, cols
 
 
-@st.cache_data()
+@st.cache_resource()
 def get_CV_data(data_arr: np.array, cols_list: list, ind_ticker: str, lead_var: str, n_largest_stocks: list,
                 n_iterations: int, sample_size: tuple = (10, 30)) -> (np.array, list):
     quotes = []
@@ -126,24 +126,39 @@ def get_hidden_states(hidden_states, y_train):
     return states, statesg
 
 
-def plot_hmm_states(df, y_states, price_col: str, ret_col: str, date_col: str):
+def plot_hmm_states(df, y_states, price_col: str, ret_col: str, date_col: str, is_test_cols: str):
     states = set(list(y_states))
-
     fig, ax = plt.subplots(2, 1, figsize=(15, 10))
 
     for i in states:
-        want = (y_states == i)
-        x = df[date_col].iloc[want]
-        y = df[price_col].iloc[want]
-        ax[0].plot(x, y, '.')
+        want_test = (y_states == i) & df[is_test_cols].values
+        want_train = (y_states == i) & ~df[is_test_cols].values
+
+        x_train = df[date_col].iloc[want_train]
+        y_train = df[price_col].iloc[want_train]
+
+        x_test = df[date_col].iloc[want_test]
+        y_test = df[price_col].iloc[want_test]
+
+        ax[0].plot(x_train, y_train, '.')
+        ax[0].plot(x_test, y_test, "D")
+
     ax[0].legend(states, fontsize=16)
     ax[0].grid(True)
     ax[0].set_xlabel(date_col, fontsize=16)
     for i in states:
-        want = (y_states == i)
-        x = df[date_col].iloc[want]
-        y = df[ret_col].iloc[want]
-        ax[1].plot(x, y, '.')
+        want_test = (y_states == i) & df[is_test_cols].values
+        want_train = (y_states == i) & ~df[is_test_cols].values
+
+        x_train = df[date_col].iloc[want_train]
+        y_train = df[ret_col].iloc[want_train]
+
+        x_test = df[date_col].iloc[want_test]
+        y_test = df[ret_col].iloc[want_test]
+
+        ax[0].plot(x_train, y_train, '.')
+        ax[0].plot(x_test, y_test, "D")
+
     ax[1].legend(states, fontsize=16)
     ax[1].grid(True)
     ax[1].set_xlabel("datetime", fontsize=16)
