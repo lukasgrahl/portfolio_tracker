@@ -9,7 +9,6 @@ from copy import deepcopy
 from sklearn.mixture import GaussianMixture
 from src.utils import get_index, printProgBar
 
-
 @st.cache_resource()
 def get_hmm_features(arr: np.array, ind_ticker: str, lead_var: str, cols_list: list, n_largest_stocks):
     arr = deepcopy(arr)
@@ -127,9 +126,9 @@ def plot_hmm_states(df, y_states, price_col: str, ret_col: str, date_col: str, i
         y_test = df[price_col].iloc[want_test]
 
         ax[0].plot(x_train, y_train, '.')
-        ax[0].plot(x_test, y_test, "D")
+        ax[0].plot(x_test, y_test, "d")
 
-    ax[0].legend(states, fontsize=16)
+    ax[0].legend([*chain([f'{i}_train' for i in states], [f'{i}_test' for i in states])], fontsize=16)
     ax[0].grid(True)
     ax[0].set_xlabel(date_col, fontsize=16)
     for i in states:
@@ -143,9 +142,9 @@ def plot_hmm_states(df, y_states, price_col: str, ret_col: str, date_col: str, i
         y_test = df[ret_col].iloc[want_test]
 
         ax[1].plot(x_train, y_train, '.')
-        ax[1].plot(x_test, y_test, "D")
+        ax[1].plot(x_test, y_test, "d")
 
-    ax[1].legend(states, fontsize=16)
+    ax[1].legend([*chain([f'{i}_train' for i in states], [f'{i}_test' for i in states])], fontsize=16)
     ax[1].grid(True)
     ax[1].set_xlabel("datetime", fontsize=16)
     return fig

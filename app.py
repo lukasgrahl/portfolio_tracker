@@ -159,6 +159,9 @@ if __name__ == '__main__':
         arr_test, test_cols = get_hmm_features(arr=test.values, ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
                                                cols_list=list(test.columns),
                                                n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
+        arr_train, train_cols = get_hmm_features(arr=train.values, ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
+                                                 cols_list=list(train.columns),
+                                                 n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
         arr_test = np.array(arr_test, dtype=float)
         arr_test = arr_test.transpose()
 
@@ -177,7 +180,6 @@ if __name__ == '__main__':
                                                   n_iterations=cv_samples)
         st.write(([item for item in arr_train_cv if len(item) == 11]))
         arr_train_cv = np.concatenate(arr_train_cv, axis=1)
-
         arr_train_cv = arr_train_cv.transpose()
 
         arr_train_cv_s = np.column_stack([scale(arr_train_cv[:, i]) for i in range(arr_train_cv.shape[1])])
