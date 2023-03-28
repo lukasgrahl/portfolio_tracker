@@ -11,9 +11,9 @@ from itertools import chain
 from datetime import datetime, timedelta, date
 
 from src.pull_data import load_data
-from src.utils import train_test_split, is_outlier, get_index
+from src.utils import is_outlier
 from src.filter import get_ARMA_test, set_up_kalman_filter, kalman_filter
-from src.hmm import get_hmm, get_hmm_features, get_CV_data, get_hidden_states, plot_hmm_states
+from src.hmm import run_hmm, plot_hmm_states
 from sklearn.preprocessing import scale
 
 if __name__ == '__main__':
@@ -153,86 +153,36 @@ if __name__ == '__main__':
         # outlier selection
         mask = is_outlier(data[LEAD_NAME])
         data = data[~mask]
-        train, test = train_test_split(data, test_size_split=[.8])
 
-        # get test data
-        arr_test, test_cols = get_hmm_features(arr=test.values, ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
-                                               cols_list=list(test.columns),
-                                               n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
-        arr_train, train_cols = get_hmm_features(arr=train.values, ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
-                                                 cols_list=list(train.columns),
-                                                 n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
-        arr_test = np.array(arr_test, dtype=float)
-        arr_test = arr_test.transpose()
+        run_out = run_hmm(data, SEL_IND_TICKER, LEAD_NAME, SEL_IND_NLARGEST_TICKERS, hmm_states, hmm_init, cv_samples)
 
-        # get train data
-        arr_train, train_cols = get_hmm_features(arr=train.values, ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
-                                                 cols_list=list(train.columns),
-                                                 n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS))
+        mod, train_cv_states, cv_states, cv_statesg, test, train, train_cv = run_out
+        X_test, y_test, X_test_df, test_states = test
+        X_train, y_train, X_train_df, train_states = train
+        X_train_cv, y_train_cv = train_cv
 
-        arr_train = np.array(arr_train, dtype=float)
-        arr_train = arr_train.transpose()
-
-        # get cross validation train data
-        arr_train_cv, train_cols_cv = get_CV_data(data_arr=train.values, cols_list=list(train.columns),
-                                                  ind_ticker=SEL_IND_TICKER[0], lead_var=LEAD_NAME,
-                                                  n_largest_stocks=list(SEL_IND_NLARGEST_TICKERS),
-                                                  n_iterations=cv_samples)
-        st.write(([item for item in arr_train_cv if len(item) == 11]))
-        arr_train_cv = np.concatenate(arr_train_cv, axis=1)
-        arr_train_cv = arr_train_cv.transpose()
-
-        arr_train_cv_s = np.column_stack([scale(arr_train_cv[:, i]) for i in range(arr_train_cv.shape[1])])
-        arr_train_s = np.column_stack([scale(arr_train[:, i]) for i in range(arr_train.shape[1])])
-        arr_test_s = np.column_stack([scale(arr_test[:, i]) for i in range(arr_test.shape[1])])
-
-        # get train and test sets
-        X_test = arr_test_s[:, ~get_index('forecast_variable', test_cols, True)].copy()
-        y_test = arr_test_s[:, get_index('forecast_variable', test_cols, True)].copy()
-
-        X_train = arr_train_s[:, ~get_index('forecast_variable', train_cols, True)].copy()
-        y_train = arr_train_s[:, get_index('forecast_variable', train_cols, True)].copy()
-
-        X_train_cv = arr_train_cv_s[:, ~get_index('forecast_variable', train_cols_cv, True)].copy()
-        y_train_cv = arr_train_cv_s[:, get_index('forecast_variable', train_cols_cv, True)].copy()
-
-        # train model
-        mod, train_cv_states = get_hmm(X_train_cv, y_train_cv, n_components=hmm_states, n_int=hmm_init)
-        states, statesg = get_hidden_states(train_cv_states, arr_train_cv[:, get_index('forecast_variable',
-                                                                                       train_cols_cv, True)])
-        st.write(statesg)
+        st.write(cv_statesg)
 
         fig = plt.figure()
-        for i in set(states['states']):
-            plt.hist(states[states['states'] == i]['rets'], bins='fd', alpha=.6, label=i)
+        for i in set(cv_states['states']):
+            plt.hist(cv_states[cv_states['states'] == i]['rets'], bins='fd', alpha=.6, label=i)
         plt.legend()
         d1.write(fig)
 
         fig = plt.figure()
-        sns.violinplot(states, x='states', y='rets')
+        sns.violinplot(cv_states, x='states', y='rets')
         plt.plot([-1, 0, 1, 2, 3], [0, 0, 0, 0, 0], color='black')
+        plt.tight_layout()
         d2.write(fig)
 
         # fig = px.violin(states, x='states', y='rets')
         # d3.write(fig)
 
-        test_states = mod.predict(X_test)
-        X_test_df = pd.DataFrame(X_test, columns=train_cols_cv[:-1])
-        X_test_df[f'{SEL_IND_TICKER[0]}_price'] = test[f'{SEL_IND_TICKER[0]}_price'].iloc[1:].values
-        X_test_df[f'{SEL_IND_TICKER[0]}'] = test[f'{SEL_IND_TICKER[0]}'].iloc[1:].values
-        X_test_df['date'] = list(test.index)[1:]
-        X_test_df['is_test'] = [True] * len(X_test_df)
-
-        train_states = mod.predict(X_train)
-        X_train_df = pd.DataFrame(X_train, columns=train_cols[:-1])
-        X_train_df[f'{SEL_IND_TICKER[0]}_price'] = train[f'{SEL_IND_TICKER[0]}_price'].iloc[1:].values
-        X_train_df[f'{SEL_IND_TICKER[0]}'] = train[f'{SEL_IND_TICKER[0]}'].iloc[1:].values
-        X_train_df['date'] = list(train.index)[1:]
-        X_train_df['is_test'] = [False] * len(X_train_df)
-
+        # plot train test
         fig = plot_hmm_states(pd.concat([X_train_df, X_test_df], axis=0),
                               np.concatenate([train_states, test_states], axis=0),
-                              f'{SEL_IND_TICKER[0]}_price', f'{SEL_IND_TICKER[0]}', 'date', 'is_test')
+                              f'{SEL_IND_TICKER[0]}_price', f'{SEL_IND_TICKER[0]}', 'date', len(X_train_df))
+        plt.tight_layout()
         st.write('Out of sample test')
         st.write(fig)
 
