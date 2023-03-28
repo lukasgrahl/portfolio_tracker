@@ -131,6 +131,7 @@ def plot_hmm_states(df, y_states, price_col: str, ret_col: str, date_col: str, i
     ax[0].legend([*chain([f'{i}_train' for i in states], [f'{i}_test' for i in states])], fontsize=16)
     ax[0].grid(True)
     ax[0].set_xlabel(date_col, fontsize=16)
+
     for i in states:
         want_test = (y_states == i) & df[is_test_cols].values
         want_train = (y_states == i) & ~df[is_test_cols].values
