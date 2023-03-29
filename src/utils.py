@@ -3,6 +3,8 @@ import numpy as np
 import datetime
 import pprint
 
+import streamlit as st
+
 
 def apply_datetime_format(x, dt_format: str = None):
     x = str(x)
@@ -38,7 +40,7 @@ def apply_datetime_format(x, dt_format: str = None):
         except ValueError:
             pass
 
-        pprint("Datetime Assignment failed")
+        print("Datetime Assignment failed")
         raise ValueError(x, "Format not in the collection")
     else:
         return datetime.datetime.strptime(x, dt_format)
@@ -91,6 +93,7 @@ def is_outlier(ser: pd.Series, std_factor: float = 5.):
     return ~((ser <= int_u) & (ser >= int_l))
 
 
+@st.cache_data()
 def train_test_split(df_in: pd.DataFrame, test_size_split: list = [.1]) -> (pd.DataFrame, pd.DataFrame):
     """
     Splits pd.DataFrame alongside axis=0 into train and test sample, assumes most
