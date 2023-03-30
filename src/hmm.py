@@ -10,11 +10,11 @@ from sklearn.mixture import GaussianMixture
 from src.utils import get_index, printProgBar, train_test_split
 from sklearn.preprocessing import scale
 
-@st.cache_resource()
-def run_hmm(data: pd.DataFrame, sel_ind_ticker: list, lead_name: str,
-            sel_ind_nlargest_ticker: list, hmm_states: int, hmm_init: int, cv_samples: int):
 
-    train, test = train_test_split(data, test_size_split=[.8])
+@st.cache_resource()
+def run_hmm(data: pd.DataFrame, sel_ind_ticker: list, lead_name: str, sel_ind_nlargest_ticker: list,
+            hmm_states: int, hmm_init: int, cv_samples: int, train_test_size: list = [.9]):
+    train, test = train_test_split(data, test_size_split=train_test_size)
 
     # get test data
     arr_test, test_cols = get_hmm_features(arr=test.values, ind_ticker=sel_ind_ticker[0], lead_var=lead_name,
@@ -59,7 +59,7 @@ def run_hmm(data: pd.DataFrame, sel_ind_ticker: list, lead_name: str,
 
     # get cv_states
     cv_states, cv_statesg = get_hidden_states(train_cv_states, arr_train_cv[:, get_index('forecast_variable',
-                                                                                      train_cols_cv, True)])
+                                                                                         train_cols_cv, True)])
 
     # get test df
     y_test_df = mod.predict(X_test)
@@ -193,7 +193,7 @@ def plot_hmm_states(df, y_states, price_col: str, ret_col: str, date_col: str, t
         ax[0].plot(x, y, '.', label=f"state {i}")
 
     ax[0].vlines(x=df.iloc[test_ind][date_col], ymin=df[price_col].min() * .95,
-                 ymax=df[price_col].max() * 1.05, label='test_set',  linewidth=.5, color='black', linestyle='-')
+                 ymax=df[price_col].max() * 1.05, label='test_set', linewidth=.5, color='black', linestyle='-')
     ax[0].legend(fontsize=font_size)
     ax[0].grid(True)
     ax[0].set_xlabel(date_col, fontsize=font_size)

@@ -2,19 +2,14 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-# test2
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, roc_auc_score
-
-from itertools import chain
 from datetime import datetime, timedelta, date
 
 from src.pull_data import load_data
-from src.utils import is_outlier
-from src.filter import get_ARMA_test, set_up_kalman_filter, kalman_filter
+from src.utils import get_binary_metric, is_outlier
+from src.filter import run_kalman_filter
 from src.hmm import run_hmm, plot_hmm_states
-from sklearn.preprocessing import scale
 
 if __name__ == '__main__':
 
@@ -34,14 +29,14 @@ if __name__ == '__main__':
         SEL_IND = st.selectbox('What index to analyse?', tuple(all_indices))  # str
         SEL_IND_TICKER = [all_index_dict[SEL_IND]]  # list
 
-        pull_data_start = st.date_input("Choose a start data for the following analysis", date(2017, 5, 1))
+        PULL_START_DATE = st.date_input("Choose a start data for the following analysis", date(2017, 5, 1))
 
         #### Load Data #####
-        pull_data_start = str(pull_data_start)
+        PULL_START_DATE_STR = str(PULL_START_DATE)
         pull_data_end = str(datetime.now().date())
 
         DF_PRICES, DF_RETS, SEL_IND_NLARGEST_TICKERS, LEAD_NAME = load_data(SEL_IND, SEL_IND_TICKER,
-                                                                            pull_data_start, pull_data_end)
+                                                                            PULL_START_DATE_STR, pull_data_end)
 
         # clear cache button
         clear_cache = st.button('Clear cache')
@@ -50,7 +45,7 @@ if __name__ == '__main__':
     st.header(f'{SEL_IND} price overview')
     st.write(
         f"""
-            The past daily prices from {pull_data_start} to {pull_data_end}
+            The past daily prices from {PULL_START_DATE_STR} to {pull_data_end}
             """
     )
     #### Plotting #####
@@ -63,57 +58,48 @@ if __name__ == '__main__':
 
     # Kalman filter
     with tab1:
-        c1, c2 = st.columns([1, 1])
-        measurement_noise = c2.select_slider('Kalman Filter measurment noise', options=np.arange(0, 2.1, .1), value=.1)
+        c1, c2, c3 = st.columns([1, 1, 1])
+        measurement_noise = c1.select_slider('Kalman Filter measurment noise', options=np.arange(0, 2.1, .1), value=.1)
         # select time window
-        analysis_time = c1.select_slider('How many weeks would you like the analysis to run on?',
-                                         options=list(range(10, 260, 10)),
-                                         value=20)
+        analysis_time = c3.select_slider('How many weeks would you like the analysis to run on?',
+                                         options=list(range(10, 260, 10)), value=20)
+        cv_samples_kalman = c2.select_slider('Cross validation samples', options=range(10, 80, 10), value=20)
         dt_end = datetime.now().date()
         dt_start = dt_end - timedelta(weeks=analysis_time)
+
         str_start, str_end = str(dt_start), str(dt_end)
         st.write(f'The analysis will run for {analysis_time} weeks from {str_start} to {str_end}')
 
-        # set chosen observation time
-        df_prices_sel = DF_PRICES.loc[str_start:str_end]
-        df_rets_sel = DF_RETS[str_start: str_end]
-
-        ###### ARIMA #########
         endog = [LEAD_NAME]
         exog = SEL_IND_NLARGEST_TICKERS.copy()
-        p, q = 3, 1
 
-        # get arima output
-        p, q, d, ma_resid, arima_params = get_ARMA_test(p, q, df_rets_sel, endog, exog)
+        # run cross validation
+        # def get_kalman_cv()
 
-        ####### Kalman Filter #####
-        xdim = p + d + q
-        zdim = xdim
-        # set up filter
-        T, Q, Z, H, x0, P0, zs, state_vars, zs_index = set_up_kalman_filter(p, q, d, xdim, zdim, df_rets_sel, ma_resid,
-                                                                            arima_params, endog, exog,
-                                                                            measurement_noise)
-        # run filter
-        X_out, P_out, X_pred, P_pred, LL_out = kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars)
+        cv_output = []
+        cv_index_len = DF_PRICES.loc[PULL_START_DATE: dt_start].shape[0] # index length
+        from random import randint
+        for i in range(0, cv_samples_kalman):
+            cv_start = randint(0, (cv_index_len - analysis_time * 5)) # take
+            cv_end = cv_start + (analysis_time * 5) #
 
-        # get output as pd.DataFrame
-        df_xtrue = df_rets_sel[endog].loc[zs_index].copy()
-        ind = pd.DatetimeIndex([str(item) for item in zs_index])
-        df_xtrue = pd.DataFrame(df_xtrue.values, index=ind, columns=endog)
-        df_xfilt = pd.DataFrame(X_out[:, 0], index=ind, columns=[f'{endog[0]}_filter'])
+            df_prices_sel = DF_PRICES.iloc[cv_start: cv_end].copy()
+            df_rets_sel = DF_RETS.iloc[cv_start: cv_end].copy()
 
-        ind = pd.DatetimeIndex([*chain(
-            [str(item) for item in zs_index],
-            [str(datetime.now().date() + timedelta(days=1))]
-        )])
-        df_xpred = pd.DataFrame(X_pred[:, 0], index=ind, columns=[f'{endog[0]}_pred'])
+            df_xtrue, df_xpred, df_xfilt = run_kalman_filter(endog, exog, df_rets_sel, measurement_noise)
+            cv_output.append([df_xtrue.values.reshape(-1), df_xpred.iloc[:-1].values.reshape(-1)])
+
+        cv_output = np.array(cv_output)
+        conf_mat, roc_score = get_binary_metric(np.concatenate(cv_output[:, 0, :]), np.concatenate(cv_output[:, 1, :]), cut_off=0)
+
+        # set chosen observation time
+        df_prices_sel = DF_PRICES.loc[str_start:str_end].copy()
+        df_rets_sel = DF_RETS.loc[str_start: str_end].copy()
+
+        df_xtrue, df_xpred, df_xfilt = run_kalman_filter(endog, exog, df_rets_sel, measurement_noise)
 
         # get performance scoring
-        conf_mat = pd.DataFrame(confusion_matrix(y_true=(df_xtrue >= 0),
-                                                 y_pred=(df_xpred.iloc[:-1] >= 0)),
-                                index=['negative', 'positive'], columns=['true', 'false'])
-        conf_mat = conf_mat / len(df_xtrue)
-        roc_score = roc_auc_score(y_true=(df_xtrue >= 0), y_score=(df_xpred.iloc[:-1] >= 0))
+        # conf_mat, roc_score = get_binary_metric(df_xtrue, df_xpred[:-1], cut_off=0.)
 
         # Streamlit
         b1, b2 = st.columns([3, 1])
@@ -154,13 +140,15 @@ if __name__ == '__main__':
         mask = is_outlier(data[LEAD_NAME])
         data = data[~mask]
 
+        # run hmm
         run_out = run_hmm(data, SEL_IND_TICKER, LEAD_NAME, SEL_IND_NLARGEST_TICKERS, hmm_states, hmm_init, cv_samples)
-
+        # get hmm output
         mod, train_cv_states, cv_states, cv_statesg, test, train, train_cv = run_out
         X_test, y_test, X_test_df, test_states = test
         X_train, y_train, X_train_df, train_states = train
         X_train_cv, y_train_cv = train_cv
 
+        # overview on states returns distribution
         st.write(cv_statesg)
 
         fig = plt.figure()
