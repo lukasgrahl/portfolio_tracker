@@ -74,12 +74,10 @@ if __name__ == '__main__':
         exog = SEL_IND_NLARGEST_TICKERS.copy()
 
         # run cross validation
-        # def get_kalman_cv()
-
         cv_output = []
         cv_index_len = DF_PRICES.loc[PULL_START_DATE: dt_start].shape[0] # index length
         from random import randint
-        for i in range(0, 2): # cv_samples_kalman):
+        for i in range(0, cv_samples_kalman):
             cv_start = randint(0, (cv_index_len - analysis_time * 5)) # take
             cv_end = cv_start + (analysis_time * 5) #
 
