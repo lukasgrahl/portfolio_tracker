@@ -3,6 +3,7 @@ import numpy as np
 import datetime
 from sklearn.metrics import confusion_matrix, roc_auc_score
 import streamlit as st
+from copy import deepcopy
 
 
 def apply_datetime_format(x, dt_format: str = None):
@@ -101,19 +102,21 @@ def train_test_split(df_in: pd.DataFrame, test_size_split: list = [.1]) -> (pd.D
     :param test_size: list splits: [.1, .1] for a 10%, 80%, 10% split
     :return: test, train
     """
-    assert sum(test_size_split) <= 1, "Test size split exceeds 1"
     df = df_in.copy()
+    test_size = deepcopy(test_size_split)
+    assert sum(test_size) <= 1, "Test size split exceeds 1"
 
-    test_size_split.insert(0, 0)
-    if sum(test_size_split) < 1: test_size_split.append(1 - sum(test_size_split))
+    test_size.insert(0, 0)
+    if sum(test_size) < 1:
+        test_size.append(1 - sum(test_size_split))
 
-    test_size_split = np.array(test_size_split) * len(df)
-    test_size_split = np.array(np.floor(test_size_split), dtype=int)
-    test_size_split = np.cumsum(test_size_split)
+    test_size = np.array(test_size) * len(df)
+    test_size = np.array(np.floor(test_size), dtype=int)
+    test_size = np.cumsum(test_size)
 
     dfs_out = []
-    for i in range(1, len(test_size_split)):
-        dfs_out.append(df.iloc[test_size_split[i - 1]: test_size_split[i]])
+    for i in range(1, len(test_size)):
+        dfs_out.append(df.iloc[test_size[i - 1]: test_size[i]])
 
     return tuple(dfs_out)
 
