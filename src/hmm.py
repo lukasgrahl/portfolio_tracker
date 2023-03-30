@@ -35,7 +35,6 @@ def run_hmm(data: pd.DataFrame, sel_ind_ticker: list, lead_name: str, sel_ind_nl
                                               ind_ticker=sel_ind_ticker[0], lead_var=lead_name,
                                               n_largest_stocks=list(sel_ind_nlargest_ticker),
                                               n_iterations=cv_samples)
-    st.write(([item for item in arr_train_cv if len(item) == 11]))
     arr_train_cv = np.concatenate(arr_train_cv, axis=1)
     arr_train_cv = arr_train_cv.transpose()
 
