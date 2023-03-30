@@ -92,7 +92,6 @@ def is_outlier(ser: pd.Series, std_factor: float = 5.):
     return ~((ser <= int_u) & (ser >= int_l))
 
 
-@st.cache_data()
 def train_test_split(df_in: pd.DataFrame, test_size_split: list = [.1]) -> (pd.DataFrame, pd.DataFrame):
     """
     Splits pd.DataFrame alongside axis=0 into train and test sample, assumes most
