@@ -5,13 +5,15 @@ from itertools import chain
 from pypfopt.risk_models import CovarianceShrinkage
 from statsmodels.tsa.arima.model import ARIMA
 from filterpy.kalman import KalmanFilter
+from datetime import datetime, timedelta
 
 from src.utils import get_ARlags
 import streamlit as st
 
 
-@st.cache_data()
+# @st.cache_data()
 def get_ARMA_test(p, q, train: pd.DataFrame, endog: list, exog: list):
+
     mod = ARIMA(endog=train[endog], exog=train[exog], order=(p, 0, q))
     res = mod.fit()
     ma_resid = res.resid
@@ -151,3 +153,33 @@ def kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars):
     LL_out = np.array(LL_out)
 
     return X_out, P_out, X_pred, P_pred, LL_out
+
+
+def run_kalman_filter(endog, exog, df_rets, measurement_noise):
+    # this should later be replaced by an automatic ARMA pq definition
+    p, q = 2, 1
+    # get arima output
+    p, q, d, ma_resid, arima_params = get_ARMA_test(p, q, df_rets, endog, exog)
+
+    ####### Kalman Filter #####
+    xdim = p + d + q
+    zdim = xdim
+    # set up filter
+    T, Q, Z, H, x0, P0, zs, state_vars, zs_index = set_up_kalman_filter(p, q, d, xdim, zdim, df_rets, ma_resid,
+                                                                        arima_params, endog, exog, measurement_noise)
+    # run filter
+    X_out, P_out, X_pred, P_pred, LL_out = kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars)
+
+    # get output as pd.DataFrame
+    df_xtrue = df_rets[endog].loc[zs_index].copy()
+    ind = pd.DatetimeIndex([str(item) for item in zs_index])
+    df_xtrue = pd.DataFrame(df_xtrue.values, index=ind, columns=endog)
+    df_xfilt = pd.DataFrame(X_out[:, 0], index=ind, columns=[f'{endog[0]}_filter'])
+
+    ind = pd.DatetimeIndex([*chain(
+        [str(item) for item in zs_index],
+        [str(datetime.now().date() + timedelta(days=1))]
+    )])
+    df_xpred = pd.DataFrame(X_pred[:, 0], index=ind, columns=[f'{endog[0]}_pred'])
+
+    return df_xtrue, df_xpred, df_xfilt

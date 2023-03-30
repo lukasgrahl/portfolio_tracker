@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
 import datetime
-import pprint
-
+from sklearn.metrics import confusion_matrix, roc_auc_score
 import streamlit as st
 
 
@@ -118,3 +117,18 @@ def train_test_split(df_in: pd.DataFrame, test_size_split: list = [.1]) -> (pd.D
         dfs_out.append(df.iloc[test_size_split[i - 1]: test_size_split[i]])
 
     return tuple(dfs_out)
+
+
+def get_binary_metric(y_pred: np.array, y_true: np.array, cut_off: float = None):
+    assert y_pred.shape == y_true.shape, "y predicted and y true do not allign in dimension"
+
+    if cut_off is not None:
+        y_pred = y_pred >= cut_off
+        y_true = y_true >= cut_off
+
+    conf_mat = pd.DataFrame(confusion_matrix(y_true=y_true,
+                                             y_pred=y_pred),
+                            index=['negative', 'positive'], columns=['true', 'false'])
+    conf_mat = conf_mat / len(y_pred)
+    roc_score = roc_auc_score(y_true=y_true, y_score=y_pred)
+    return conf_mat, roc_score
