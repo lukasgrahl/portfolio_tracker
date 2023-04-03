@@ -11,13 +11,12 @@ from src.utils import get_binary_metric, is_outlier
 from src.filter import run_kalman_filter, get_kalman_cv
 from src.hmm import run_hmm, plot_hmm_states
 from src.get_toml import get_toml_data
-from src.set_up_streamlit import set_up_st
 import os
 
-from settings import DATA_DIR
+from settings import DATA_DIR, PROJECT_ROOT
 
 if __name__ == '__main__':
-    config = get_toml_data(os.path.join(DATA_DIR, 'config.toml'))
+    config = get_toml_data(os.path.join(PROJECT_ROOT, 'config.toml'))
     all_index_dict = {y: x for y, x in list(config['indices'].values())}
     all_index = [item[0] for item in list(config['indices'].values())]
 
