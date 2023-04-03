@@ -9,6 +9,11 @@ from itertools import chain
 
 from src.utils import apply_datetime_format
 from pytickersymbols import PyTickerSymbols
+from src.get_toml import get_toml_data
+import os
+from settings import PROJECT_ROOT
+
+config = get_toml_data(os.path.join(PROJECT_ROOT, 'config.toml'))
 
 
 @st.cache_data()
@@ -28,7 +33,7 @@ def load_data(sel_ind, sel_ind_ticker, pull_data_start: str, pull_data_end: str,
     df_rets = np.log(df_prices / df_prices.shift(1)).dropna().copy()
 
     # get lead variable
-    lead_name = f'{sel_ind_ticker[0]}_lead'
+    lead_name = f"{sel_ind_ticker[0]}_{config['data']['lead_suffix']}"
     df_rets[lead_name] = df_rets[sel_ind_ticker[0]].shift(-1)
     df_rets = df_rets.dropna()
     return df_prices, df_rets, sel_ind_nlargest_tickers, lead_name
