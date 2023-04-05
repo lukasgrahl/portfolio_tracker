@@ -2,18 +2,20 @@ import numpy as np
 import pandas as pd
 from itertools import chain
 
+import streamlit
 from pypfopt.risk_models import CovarianceShrinkage
 from statsmodels.tsa.arima.model import ARIMA
 from filterpy.kalman import KalmanFilter
 from datetime import datetime, timedelta
 
-from src.utils import get_ARlags
+from random import randint
 import streamlit as st
+
+from src.utils import get_ARlags, get_binary_metric
 
 
 # @st.cache_data()
 def get_ARMA_test(p, q, train: pd.DataFrame, endog: list, exog: list):
-
     mod = ARIMA(endog=train[endog], exog=train[exog], order=(p, 0, q))
     res = mod.fit()
     ma_resid = res.resid
@@ -155,7 +157,7 @@ def kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars):
     return X_out, P_out, X_pred, P_pred, LL_out
 
 
-def run_kalman_filter(endog, exog, df_rets, measurement_noise):
+def run_kalman_filter(endog: list, exog: list, df_rets: pd.DataFrame, measurement_noise: float):
     # this should later be replaced by an automatic ARMA pq definition
     p, q = 2, 1
     # get arima output
@@ -183,3 +185,24 @@ def run_kalman_filter(endog, exog, df_rets, measurement_noise):
     df_xpred = pd.DataFrame(X_pred[:, 0], index=ind, columns=[f'{endog[0]}_pred'])
 
     return df_xtrue, df_xpred, df_xfilt
+
+
+@st.cache_resource
+def get_kalman_cv(df_rets: pd.DataFrame, endog: list, exog: list, measurement_noise: float,
+                  cv_index_len: int, sample_len_weeks: int, no_samples: int = 20):
+    cv_output = []
+    for i in range(0, no_samples):
+        cv_start = randint(0, (cv_index_len - sample_len_weeks * 5))  # take
+        cv_end = cv_start + (sample_len_weeks * 5)  #
+
+        df_rets_sel = df_rets.iloc[cv_start: cv_end].copy()
+
+        df_xtrue, df_xpred, df_xfilt = run_kalman_filter(endog, exog, df_rets_sel, measurement_noise)
+        df_xtrue = df_xtrue.iloc[5:]
+        df_xpred = df_xpred.iloc[5:]
+        cv_output.append([df_xtrue.values.reshape(-1), df_xpred.iloc[:-1].values.reshape(-1)])
+
+    cv_output = np.array(cv_output)
+    conf_mat, roc_score = get_binary_metric(np.concatenate(cv_output[:, 0, :]), np.concatenate(cv_output[:, 1, :]),
+                                            cut_off=0)
+    return conf_mat, roc_score

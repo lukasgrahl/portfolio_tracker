@@ -1,0 +1,20 @@
+[indices]
+#names = ['EURO STOXX 50', 'FTSE 100', 'OMX Stockholm 30', 'CAC 40', 'DAX', 'MDAX', 'TECDAX', 'IBEX 35', 'S&P 500', 'DOW JONES', 'AEX', 'NASDAQ 100']
+#tickers = ['^STOXX50E', '^FTSE', '^OMX', '^FCHI', '^GDAXI', '^MDAXI', '^TECDAX', '^IBEX', '^GSPC', '^DJI', '^AEX', '^IXIC']
+EURO_STOXX_50 = ['EURO STOXX 50', '^STOXX50E']
+FTSE_100 = ['FTSE 100', '^FTSE']
+OMX_Stockholm_30 = ['OMX Stockholm 30', '^OMX']
+CAC_40 = ['CAC 40', '^FCHI']
+DAX = ['DAX', '^GDAXI']
+MDAX = ['MDAX', '^MDAXI']
+TECDAX = ['TECDAX', '^TECDAX']
+IBEX_35 = ['IBEX 35', '^IBEX']
+SP_500 = ['S&P 500', '^GSPC']
+DOW_JONES = ['DOW JONES', '^DJI']
+AEX = ['AEX', '^AEX']
+NASDAQ_100 = ['NASDAQ 100', '^IXIC']
+
+
+[data]
+lead_suffix = 'lead'
+
