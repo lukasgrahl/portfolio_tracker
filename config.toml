@@ -14,7 +14,30 @@ DOW_JONES = ['DOW JONES', '^DJI']
 AEX = ['AEX', '^AEX']
 NASDAQ_100 = ['NASDAQ 100', '^IXIC']
 
-
 [data]
 lead_suffix = 'lead'
+train_test_size = 0.9
+outlier_std_interval = 5
+
+[default_values]
+pull_start_date = [2020, 1, 1]
+kf_cv_samples = 1 # 20
+kf_analysis_time = 10
+kf_measurement_noise = 0.01
+hmm_no_states = 3
+hmm_cv_samples = 50 #2_000
+hmm_start_init = 2 # 20
+hmm_cv_sample_sizes = [30, 60]
+
+[streamlit_sliders]
+kf_measurement_noise = [0, 2.1, 0.01]
+kf_analysis_time = [10, 260, 5]
+kf_cv_samples = [0, 80]
+hmm_no_states = [1, 6]
+hmm_cv_samples = [0, 51_000, 50]
+hmm_start_init = [0, 110, 1]
+
+
+
+
 

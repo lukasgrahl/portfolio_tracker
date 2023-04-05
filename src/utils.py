@@ -6,7 +6,13 @@ import streamlit as st
 from copy import deepcopy
 
 
-def apply_datetime_format(x, dt_format: str = None):
+def apply_datetime_format(x, dt_format: str = None) -> datetime.datetime:
+    """
+    Function applies a series of non-conflicting time series formats, no need to specify
+    :param x: string time stamp
+    :param dt_format: datetime time series format
+    :return: datetime stamp
+    """
     x = str(x)
     if dt_format is None:
 
@@ -67,6 +73,18 @@ def get_ARlags(ser: pd.Series, lags: int, suffix: str = 'lag', ret_org_ser: bool
 
 
 def printProgBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
+    """
+    Prints progression bar
+    :param iteration:
+    :param total:
+    :param prefix:
+    :param suffix:
+    :param decimals:
+    :param length:
+    :param fill:
+    :param printEnd:
+    :return:
+    """
     perc = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)
     bar = fill * filledLength + '-' * (length - filledLength)
@@ -77,15 +95,28 @@ def printProgBar(iteration, total, prefix='', suffix='', decimals=1, length=100,
     pass
 
 
-def get_index(col: str, col_list: list, return_boolean: bool = False):
-    assert col in col_list, f'{col} is not in col_list'
+def get_index(x: str, col_list: list, return_boolean: bool = False):
+    """
+    Gets index of a string element in a list of strings
+    :param x: string element
+    :param col_list: list of strings
+    :param return_boolean: if True function returns a boolean mask array of the list of strings
+    :return: either integer index or boolean mask array
+    """
+    assert x in col_list, f'{x} is not in col_list'
     if not return_boolean:
-        return col_list.index(col)
+        return col_list.index(x)
     else:
-        return np.array([True if i == col_list.index(col) else False for i in range(0, len(col_list))])
+        return np.array([True if i == col_list.index(x) else False for i in range(0, len(col_list))])
 
 
 def is_outlier(ser: pd.Series, std_factor: float = 5.):
+    """
+    Outlier identification function based on standard deviations
+    :param ser: data
+    :param std_factor: number of standard deviations that form outlier interval
+    :return: mask array whether data point is outlier
+    """
     mu = np.mean(ser)
     sig = np.std(ser) * std_factor
     int_u = mu + sig
@@ -102,6 +133,9 @@ def train_test_split(df_in: pd.DataFrame, test_size_split: list = [.1]) -> (pd.D
     :param test_size: list splits: [.1, .1] for a 10%, 80%, 10% split
     :return: test, train
     """
+    if type(test_size_split) == float:
+        test_size_split = [test_size_split]
+
     df = df_in.copy()
     test_size = deepcopy(test_size_split)
     assert sum(test_size) <= 1, "Test size split exceeds 1"
@@ -122,6 +156,13 @@ def train_test_split(df_in: pd.DataFrame, test_size_split: list = [.1]) -> (pd.D
 
 
 def get_binary_metric(y_pred: np.array, y_true: np.array, cut_off: float = None):
+    """
+    Function returns binary classication performance metrics
+    :param y_pred: predicted values
+    :param y_true: true values
+    :param cut_off: Optional: if data is not yet binary, the cut off point will be used to tranform data to boolean
+    :return: confustion matrix, roc area under the curve score
+    """
     assert y_pred.shape == y_true.shape, "y predicted and y true do not allign in dimension"
 
     if cut_off is not None:

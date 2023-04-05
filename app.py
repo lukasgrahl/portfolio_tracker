@@ -13,28 +13,51 @@ from src.hmm import run_hmm, plot_hmm_states
 from src.get_toml import get_toml_data
 import os
 
-from settings import DATA_DIR, PROJECT_ROOT
+from settings import PROJECT_ROOT
 
 if __name__ == '__main__':
-    config = get_toml_data(os.path.join(PROJECT_ROOT, 'config.toml'))
-    all_index_dict = {y: x for y, x in list(config['indices'].values())}
-    all_index = [item[0] for item in list(config['indices'].values())]
 
-    st.set_page_config(page_title='A binary guide to the S&P 500', layout='wide')
+    # get config globals
+    config = get_toml_data(os.path.join(PROJECT_ROOT, 'config.toml'))
+    config_all_index_dict = {y: x for y, x in list(config['indices'].values())}
+    config_all_index = [item[0] for item in list(config['indices'].values())]
+
+    # get data related vals
+    train_test_size = config['data']['train_test_size']
+    outlier_interval = config['data']['outlier_std_interval']
+
+    # get slier values
+    slider_kf_measurement = config['streamlit_sliders']['kf_measurement_noise']
+    slider_kf_analysis_time = config['streamlit_sliders']['kf_analysis_time']
+    slider_kf_cv_samples = config['streamlit_sliders']['kf_cv_samples']
+    slider_hmm_no_states = config['streamlit_sliders']['hmm_no_states']
+    slider_hmm_cv_samples = config['streamlit_sliders']['hmm_cv_samples']
+    slider_hmm_start_init = config['streamlit_sliders']['hmm_start_init']
+
+    # set default values for sliders
+    default_pull_start_date = config['default_values']['pull_start_date']
+    default_KF_cv_samples = config['default_values']['kf_cv_samples']
+    default_KF_analysis_time = config['default_values']['kf_analysis_time']
+    default_KF_measurement_noise = config['default_values']['kf_measurement_noise']
+    default_HMM_no_states = config['default_values']['hmm_no_states']
+    default_HMM_cv_samples = config['default_values']['hmm_cv_samples']
+    default_HMM_start_init = config['default_values']['hmm_start_init']
+    default_HMM_cv_sample_sizes = config['default_values']['hmm_cv_sample_sizes']
 
     # streamlit sidebar
+    st.set_page_config(page_title='A binary guide to the S&P 500', layout='wide')
     with st.sidebar:
         # select index
-        SEL_IND = st.selectbox('What index to analyse?', tuple(all_index))  # str
-        SEL_IND_TICKER = [all_index_dict[SEL_IND]]  # list
+        SEL_IND = st.selectbox('What index to analyse?', tuple(config_all_index))  # str
+        SEL_IND_TICKER = [config_all_index_dict[SEL_IND]]  # list
 
         # select start data
-        PULL_START_DATE = st.date_input("Choose a start data for the following analysis", date(2017, 5, 1))
+        PULL_START_DATE = st.date_input("Choose a start data for the following analysis",
+                                        datetime(*default_pull_start_date)) # value=default_pull_start_date)
         PULL_END_DATE = datetime.now().date()
 
         # clear cache button
         clear_cache = st.button('Clear cache')
-        # Reset cache
         if clear_cache:
             st.cache_data.clear()
 
@@ -44,7 +67,7 @@ if __name__ == '__main__':
 
     #### Load Data #####
     DF_PRICES, DF_RETS, SEL_IND_NLARGEST_TICKERS, LEAD_NAME = load_data(SEL_IND, SEL_IND_TICKER,
-                                                                        str(PULL_START_DATE), PULL_END_DATE)
+                                                                        str(PULL_START_DATE), str(PULL_END_DATE))
 
     #### Plotting #####
     fig1 = px.line(DF_PRICES.reset_index(), y=SEL_IND_TICKER[0], x='index')
@@ -58,10 +81,15 @@ if __name__ == '__main__':
     with tab1:
         # ST select kalman filter inputs
         c1, c2, c3 = st.columns([1, 1, 1])
-        measurement_noise = c1.select_slider('Kalman Filter measurment noise', options=np.arange(0, 2.1, .1), value=.1)
+        measurement_noise = c1.select_slider('Kalman Filter measurment noise',
+                                             options=np.arange(*slider_kf_measurement),
+                                             value=default_KF_measurement_noise)
         analysis_time = c3.select_slider('How many weeks would you like the analysis to run on?',
-                                         options=list(range(10, 260, 10)), value=20)
-        cv_samples_kalman = c2.select_slider('Cross validation samples', options=range(10, 80, 10), value=20)
+                                         options=range(*slider_kf_analysis_time),
+                                         value=default_KF_analysis_time)
+        cv_samples_kalman = c2.select_slider('Cross validation samples',
+                                             options=range(*slider_kf_cv_samples),
+                                             value=default_KF_cv_samples)
         dt_start = PULL_END_DATE - timedelta(weeks=analysis_time)
         st.write(f'The analysis will run for {analysis_time} weeks from {str(dt_start)} to {str(PULL_END_DATE)}')
 
@@ -72,25 +100,28 @@ if __name__ == '__main__':
         cv_index_len = DF_PRICES.loc[PULL_START_DATE: dt_start].shape[0]  # index length
 
         # cross validate kalman filter
-        conf_mat, roc_score = get_kalman_cv(DF_RETS, endog, exog, measurement_noise, cv_index_len,
-                                            analysis_time, cv_samples_kalman)
+        conf_mat, roc_score = get_kalman_cv(data=DF_RETS, endog=[LEAD_NAME], exog=SEL_IND_NLARGEST_TICKERS.copy(),
+                                            measurement_noise=measurement_noise, cv_index_len=cv_index_len,
+                                            sample_len_weeks=analysis_time, no_samples=cv_samples_kalman)
 
         # set chosen observation time
         df_prices_sel = DF_PRICES.loc[str(dt_start): str(PULL_END_DATE)].copy()
         df_rets_sel = DF_RETS.loc[str(dt_start): str(PULL_END_DATE)].copy()
         # run filter on test data
-        df_xtrue, df_xpred, df_xfilt = run_kalman_filter(endog, exog, df_rets_sel, measurement_noise)
+        df_xtrue, df_xpred, df_xfilt = run_kalman_filter(endog=[LEAD_NAME], exog=SEL_IND_NLARGEST_TICKERS.copy(),
+                                                         data=df_rets_sel, measurement_noise=measurement_noise)
 
         # ST present output
         b1, b2 = st.columns([3, 1])
-
         b1.write('Returns chart')
         b1.line_chart(pd.concat([df_xtrue, df_xpred, df_xfilt], axis=1))
         b1.write(f'Tomorrows return is predicted to be: {round(df_xpred.iloc[-1].values[0], 3)}')
 
+        # plot
         fig, ax = plt.subplots(figsize=(5, 5))
         sns.heatmap(conf_mat, ax=ax, annot=True, cmap='winter')
         ax.set_title("Confusion Matrix")
+
         b2.write(fig)
         b2.write(f'Kalman Filter has ROC of {round(roc_score, 3)}')
         if roc_score < .5:
@@ -106,9 +137,12 @@ if __name__ == '__main__':
         c1, c2, c3 = st.columns([1, 1, 1])
         d1, d2 = st.columns([1, 1])
 
-        hmm_states = c1.select_slider("How HMM states", range(1, 6), value=2)
-        cv_samples = c2.select_slider("How many cross validation samples", range(1_000, 51_000, 1_000), value=1_000)
-        hmm_init = c3.select_slider("HMM start init", range(10, 110, 10), value=20)
+        hmm_states = c1.select_slider("How HMM states", options=range(*slider_hmm_no_states),
+                                      value=default_HMM_no_states)
+        cv_samples = c2.select_slider("How many cross validation samples", options=range(*slider_hmm_cv_samples),
+                                      value=default_HMM_cv_samples)
+        hmm_init = c3.select_slider("HMM start init", options=range(*slider_hmm_start_init),
+                                    value=default_HMM_start_init)
 
         # get data for CV
         data = DF_RETS.drop([item for item in DF_RETS.columns if SEL_IND_TICKER[0] in item], axis=1).copy()
@@ -117,11 +151,14 @@ if __name__ == '__main__':
         data = data.join(DF_PRICES[SEL_IND_TICKER].rename(columns={SEL_IND_TICKER[0]: f'{SEL_IND_TICKER[0]}_price'}))
 
         # outlier selection
-        mask = is_outlier(data[LEAD_NAME])
+        mask = is_outlier(data[LEAD_NAME], outlier_interval)
         data = data[~mask]
 
         # run hmm
-        run_out = run_hmm(data, SEL_IND_TICKER, LEAD_NAME, SEL_IND_NLARGEST_TICKERS, hmm_states, hmm_init, cv_samples)
+        run_out = run_hmm(data=data, sel_ind_ticker=SEL_IND_TICKER, lead_name=LEAD_NAME,
+                          sel_ind_nlargest_ticker=SEL_IND_NLARGEST_TICKERS, hmm_states=hmm_states, hmm_init=hmm_init,
+                          cv_samples=cv_samples, train_test_size=train_test_size,
+                          cv_sample_sizes=tuple(default_HMM_cv_sample_sizes))
         # get hmm output
         mod, train_cv_states, cv_states, cv_statesg, test, train, train_cv = run_out
         X_test, y_test, X_test_df, test_states = test
@@ -150,5 +187,3 @@ if __name__ == '__main__':
         plt.tight_layout()
         st.write('Out of sample test')
         st.write(fig)
-
-
