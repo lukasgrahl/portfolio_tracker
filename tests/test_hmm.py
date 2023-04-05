@@ -43,7 +43,7 @@ if __name__ == '__main__':
                                    list(test.columns), list(sel_ind_nlargest_tickers))
     arr_test = np.array(arr_test, dtype=float)
     cv_train, cv_cols = get_CV_data(train.values, list(train.columns), sel_ind_ticker[0],
-                                    n_largest_stocks=list(sel_ind_nlargest_tickers), n_iterations=2)
+                                    exogenous_vars=list(sel_ind_nlargest_tickers), no_samples=2)
     # scale data
     arr_test = arr_test.transpose()
     arr_train = np.concatenate(cv_train, axis=1).transpose()
