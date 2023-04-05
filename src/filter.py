@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from itertools import chain
 
-import streamlit
 from pypfopt.risk_models import CovarianceShrinkage
 from statsmodels.tsa.arima.model import ARIMA
 from filterpy.kalman import KalmanFilter
@@ -14,8 +13,16 @@ import streamlit as st
 from src.utils import get_ARlags, get_binary_metric
 
 
-# @st.cache_data()
 def get_ARMA_test(p, q, train: pd.DataFrame, endog: list, exog: list):
+    """
+    Placeholder function for ARMA model tbd
+    :param p:
+    :param q:
+    :param train:
+    :param endog:
+    :param exog:
+    :return:
+    """
     mod = ARIMA(endog=train[endog], exog=train[exog], order=(p, 0, q))
     res = mod.fit()
     ma_resid = res.resid
@@ -26,7 +33,25 @@ def get_ARMA_test(p, q, train: pd.DataFrame, endog: list, exog: list):
 
 def set_up_kalman_filter(p: int, q: int, d: int, xdim: int, zdim: int, data: pd.DataFrame,
                          ma_resid: pd.Series, arima_params: dict, endog: list, exog: list,
-                         measurement_noise: float = .01, x0: float = .1, P0: float = .1):
+                         measurement_noise: float = .01, x0: float = .1, P0: float = .1)\
+        -> (np.array, np.array, np.array, np.array, np.array, np.array, np.array, list, list):
+    """
+    Takes in ARIMA functional form and other Kalman Filter specification to return Matrix format
+    :param p: arima AR
+    :param q: arima MA
+    :param d: arima no of exog variables
+    :param xdim: no of state variables
+    :param zdim: no of observable variables
+    :param data: data of obersables
+    :param ma_resid: arima moving average component residuals
+    :param arima_params: arima coefficients
+    :param endog: names of endogeneous variables
+    :param exog: names of exogenoues variables
+    :param measurement_noise: measurment noise "distrust" in measurement e.g. variance around "real" values
+    :param x0: starting value for states X
+    :param P0: starting value for covariance matrix P
+    :return: All matrices required for running the Kalman filter
+    """
     assert len(endog) == 1, f"The endogenous variable must be unique and cannot be {endog}"
 
     ma_resid.name = 'ma_resid'
@@ -94,7 +119,25 @@ def set_up_kalman_filter(p: int, q: int, d: int, xdim: int, zdim: int, data: pd.
     return T, Q, Z, H, x0, P0, zs, state_vars, df.index
 
 
-def kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars):
+def kalman_filter(xdim: int, zdim: int, p: int, q: int, d: int, x0: float, P0: float,
+                  zs: np.array, T: np.array, Q: np.array, Z: np.array, H: np.array, state_vars: list):
+    """
+    Sets up filterpy Kalman filter, runs it across observed data and computes MA error component in t for t+1
+    :param xdim: no of state variables
+    :param zdim: no of observed variables
+    :param p: arima AR
+    :param q: arima MA
+    :param d: arima no of exog variables
+    :param x0: starting value for state variables
+    :param P0: starting value for cov matrix P
+    :param zs: array of observables
+    :param T: transition matrix
+    :param Q: process noise matrix
+    :param Z: measurement to observables matrix
+    :param H: noise matrix
+    :param state_vars: list with state variables names
+    :return:
+    """
     no_params = p + q + d
 
     # initialise kalaman filter object
@@ -157,23 +200,32 @@ def kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars):
     return X_out, P_out, X_pred, P_pred, LL_out
 
 
-def run_kalman_filter(endog: list, exog: list, df_rets: pd.DataFrame, measurement_noise: float):
+def run_kalman_filter(endog: list, exog: list, data: pd.DataFrame, measurement_noise: float, **kwargs) \
+        -> (pd.DataFrame, pd.DataFrame, pd.DataFrame):
+    """
+    Uses set_up_kalamn_filter and kalman_filter to run the filter entirely off a dataset
+    :param endog: list of endoenous variables names
+    :param exog: list of exogenouse variables names
+    :param data: data frame of returns and prices
+    :param measurement_noise: measurement noise for the kaman filter
+    :return: true endogenous values,  predicted endogenous variable, filtered endogenous variable
+    """
     # this should later be replaced by an automatic ARMA pq definition
     p, q = 2, 1
     # get arima output
-    p, q, d, ma_resid, arima_params = get_ARMA_test(p, q, df_rets, endog, exog)
+    p, q, d, ma_resid, arima_params = get_ARMA_test(p, q, data, endog, exog)
 
     ####### Kalman Filter #####
     xdim = p + d + q
     zdim = xdim
     # set up filter
-    T, Q, Z, H, x0, P0, zs, state_vars, zs_index = set_up_kalman_filter(p, q, d, xdim, zdim, df_rets, ma_resid,
+    T, Q, Z, H, x0, P0, zs, state_vars, zs_index = set_up_kalman_filter(p, q, d, xdim, zdim, data, ma_resid,
                                                                         arima_params, endog, exog, measurement_noise)
     # run filter
     X_out, P_out, X_pred, P_pred, LL_out = kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars)
 
     # get output as pd.DataFrame
-    df_xtrue = df_rets[endog].loc[zs_index].copy()
+    df_xtrue = data[endog].loc[zs_index].copy()
     ind = pd.DatetimeIndex([str(item) for item in zs_index])
     df_xtrue = pd.DataFrame(df_xtrue.values, index=ind, columns=endog)
     df_xfilt = pd.DataFrame(X_out[:, 0], index=ind, columns=[f'{endog[0]}_filter'])
@@ -188,14 +240,26 @@ def run_kalman_filter(endog: list, exog: list, df_rets: pd.DataFrame, measuremen
 
 
 @st.cache_resource
-def get_kalman_cv(df_rets: pd.DataFrame, endog: list, exog: list, measurement_noise: float,
+def get_kalman_cv(data: pd.DataFrame, endog: list, exog: list, measurement_noise: float,
                   cv_index_len: int, sample_len_weeks: int, no_samples: int = 20):
+    """
+    Function that uses run_kalaman_filter to run the filter on several samples to obtain a cross validated performance
+    estimate
+    :param data: dataframe of returns and prices
+    :param endog: list of endogenous variables
+    :param exog: list of exogenous variables
+    :param measurement_noise: kalman filter measurement noise
+    :param cv_index_len: length of the entire sample
+    :param sample_len_weeks: number of weeks for each subsample e.g. period length of the subsample
+    :param no_samples: number of sub-samples to be created e.g. number of folds in the cross validation
+    :return: binary (up/down returns) confusion matrix, ROC area under the curve score
+    """
     cv_output = []
     for i in range(0, no_samples):
         cv_start = randint(0, (cv_index_len - sample_len_weeks * 5))  # take
         cv_end = cv_start + (sample_len_weeks * 5)  #
 
-        df_rets_sel = df_rets.iloc[cv_start: cv_end].copy()
+        df_rets_sel = data.iloc[cv_start: cv_end].copy()
 
         df_xtrue, df_xpred, df_xfilt = run_kalman_filter(endog, exog, df_rets_sel, measurement_noise)
         df_xtrue = df_xtrue.iloc[5:]
@@ -203,6 +267,6 @@ def get_kalman_cv(df_rets: pd.DataFrame, endog: list, exog: list, measurement_no
         cv_output.append([df_xtrue.values.reshape(-1), df_xpred.iloc[:-1].values.reshape(-1)])
 
     cv_output = np.array(cv_output)
-    conf_mat, roc_score = get_binary_metric(np.concatenate(cv_output[:, 0, :]), np.concatenate(cv_output[:, 1, :]),
-                                            cut_off=0)
+    conf_mat, roc_score = get_binary_metric(np.concatenate(cv_output[:, 0, :]),
+                                            np.concatenate(cv_output[:, 1, :]), cut_off=0)
     return conf_mat, roc_score
