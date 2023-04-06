@@ -130,8 +130,15 @@ if __name__ == '__main__':
 
     # ARIMA
     with tab2:
+        
+    from arima_values import p, d, q
+    
        # ST select ARIMA inputs
     c1, c2, c3 = st.columns([1, 1, 1])
+    p = c1.slider('ARIMA(p)', 0, 10, value=p)
+    d = c2.slider('ARIMA(d)', 0, 10, value=d)
+    q = c3.slider('ARIMA(q)', 0, 10, value=q)
+
     order = c1.text_input('ARIMA order (p, d, q)', '1, 0, 1')
     analysis_time = c3.select_slider('How many weeks would you like the analysis to run on?',
                                  options=range(1, 53),
