@@ -7,10 +7,10 @@ import seaborn as sns
 from datetime import datetime, timedelta, date
 
 from src.pull_data import load_data
-from src.utils import get_binary_metric, is_outlier
+from src.utils import is_outlier
 from src.filter import run_kalman_filter, get_kalman_cv
 from src.hmm import run_hmm, plot_hmm_states
-from src.get_toml import get_toml_data
+from src.toml import load_toml
 import os
 
 from settings import PROJECT_ROOT
@@ -18,7 +18,7 @@ from settings import PROJECT_ROOT
 if __name__ == '__main__':
 
     # get config globals
-    config = get_toml_data(os.path.join(PROJECT_ROOT, 'config.toml'))
+    config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
     config_all_index_dict = {y: x for y, x in list(config['indices'].values())}
     config_all_index = [item[0] for item in list(config['indices'].values())]
 
@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
         # select start data
         PULL_START_DATE = st.date_input("Choose a start data for the following analysis",
-                                        datetime(*default_pull_start_date)) # value=default_pull_start_date)
+                                        datetime(*default_pull_start_date))
         PULL_END_DATE = datetime.now().date()
 
         # clear cache button
