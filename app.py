@@ -3,6 +3,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
 import seaborn as sns
 from datetime import datetime, timedelta, date
 
@@ -129,8 +130,59 @@ if __name__ == '__main__':
 
     # ARIMA
     with tab2:
-        st.plotly_chart(fig1, theme='streamlit', use_container_width=True)
+       # ST select ARIMA inputs
+    c1, c2, c3 = st.columns([1, 1, 1])
+    order = c1.text_input('ARIMA order (p, d, q)', '1, 0, 1')
+    analysis_time = c3.select_slider('How many weeks would you like the analysis to run on?',
+                                 options=range(1, 53),
+                                 value=26)
+    cv_samples_arima = c2.select_slider('Cross validation samples',
+                                     options=range(1, 11),
+                                     value=5)
+    dt_start = PULL_END_DATE - timedelta(weeks=analysis_time)
+    st.write(f'The analysis will run for {analysis_time} weeks from {str(dt_start)} to {str(PULL_END_DATE)}')
 
+    # set ARIMA values
+    p, d, q = [int(x.strip()) for x in order.split(',')]
+    mydata = pd.read_csv('mydata.csv')
+    model = sm.tsa.arima.ARIMA(mydata.value, order=(p, d, q))
+
+    # cross validate ARIMA model
+    conf_mat, roc_score = get_arima_cv(data=mydata.value, model=model, cv_samples=cv_samples_arima,
+                                   sample_len_weeks=analysis_time, start_date=PULL_START_DATE, end_date=dt_start)
+
+    # fit ARIMA model to selected data
+    modelfit = model.fit(start_params=None)
+    A = modelfit.model.ssm.transition[..., 0]
+    params = modelfit.params
+
+    # ST present output
+    fig1, ax1 = plt.subplots(figsize=(12, 6))
+    ax1.plot(mydata.index, mydata.value, label='Original Data')
+    ax1.plot(mydata.index, modelfit.fittedvalues, label='ARIMA Model')
+    ax1.set_xlabel('Date')
+    ax1.set_ylabel('Value')
+    ax1.set_title('ARIMA Model vs. Original Data')
+    ax1.legend()
+    st.pyplot(fig1)
+
+    b1, b2 = st.columns([3, 1])
+    b1.write('ARIMA Model Summary:')
+    b1.write(modelfit.summary().as_html())
+
+    # plot
+    fig2, ax2 = plt.subplots(figsize=(5, 5))
+    sns.heatmap(conf_mat, ax=ax2, annot=True, cmap='winter')
+    ax2.set_title("Confusion Matrix")
+
+    b2.write(fig2)
+    b2.write(f'ARIMA Model has ROC of {round(roc_score, 3)}')
+    if roc_score < .5:
+        b2.write(f'WARNING: This model has no predictive power') 
+        
+     #st.plotly_chart(fig1, theme='streamlit', use_container_width=True)
+
+    
     # HMM
     with tab3:
         st.write('HMM model')
