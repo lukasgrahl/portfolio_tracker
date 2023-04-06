@@ -1,7 +1,7 @@
 import tomli
 
 
-def get_toml_data(path):
+def load_toml(path):
     """
     return data like a dict (key value pair)
     :param path: file path

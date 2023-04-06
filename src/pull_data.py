@@ -9,15 +9,30 @@ from itertools import chain
 
 from src.utils import apply_datetime_format
 from pytickersymbols import PyTickerSymbols
-from src.get_toml import get_toml_data
+from src.toml import load_toml
 import os
 from settings import PROJECT_ROOT
 
-config = get_toml_data(os.path.join(PROJECT_ROOT, 'config.toml'))
+config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
+from settings import DATA_DIR
 
 
 @st.cache_data()
-def load_data(sel_ind, sel_ind_ticker, pull_data_start: str, pull_data_end: str, n_largest: int=5):
+def load_data(sel_ind, sel_ind_ticker, pull_data_start: str, pull_data_end: str,
+              n_largest: int = 5, no_internet: bool = False):
+    if no_internet:
+        df_prices = pd.read_csv(os.path.join(DATA_DIR, 'prices.csv')).rename(columns={'Unnamed: 0': 'index'})
+        df_prices['index'] = df_prices['index'].apply(lambda x: apply_datetime_format(x))
+        df_prices.set_index('index', inplace=True)
+
+        df_rets = pd.read_csv(os.path.join(DATA_DIR, 'returns.csv')).rename(columns={'Unnamed: 0': 'index'})
+        df_rets['index'] = df_rets['index'].apply(lambda x: apply_datetime_format(x))
+        df_rets.set_index('index', inplace=True)
+
+        sel_ind_nlargest_tickers = ['MOH.F', 'ASME.F', 'PROSY', 'LOR.F', 'HMI.F']
+        lead_name = f"{sel_ind_ticker[0]}_{config['data']['lead_suffix']}"
+        return df_prices, df_rets, sel_ind_nlargest_tickers, lead_name
+
     sel_ind_composit_tickers, _, sel_ind_nlargest_tickers, success = get_index_nlargest_composits(sel_ind, n=n_largest)
     if success <= .8: st.write(f'Market cap was only available for {success * 100: .1f} %  of composits')
     df_prices = get_yf_ticker_data(sel_ind_nlargest_tickers, pull_data_start, pull_data_end)
@@ -36,7 +51,9 @@ def load_data(sel_ind, sel_ind_ticker, pull_data_start: str, pull_data_end: str,
     lead_name = f"{sel_ind_ticker[0]}_{config['data']['lead_suffix']}"
     df_rets[lead_name] = df_rets[sel_ind_ticker[0]].shift(-1)
     df_rets = df_rets.dropna()
+
     return df_prices, df_rets, sel_ind_nlargest_tickers, lead_name
+
 
 @st.cache_data()
 def get_yf_ticker_data(tickers: list, start: str, end: str, price_kind: list = ['Adj Close']) -> pd.DataFrame:
