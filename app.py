@@ -129,10 +129,20 @@ if __name__ == '__main__':
             b2.write(f'WARNING: This model has no predictive power')
 
     # ARIMA
-    with tab2:
-  
-       from arima_values import p, d, q
-       analysis_time = st.sidebar.select_slider('How many weeks would you like the analysis to run on?',
+    with tab2:     
+
+        #Import Data 
+
+        data = DF_RETS.drop([item for item in DF_RETS.columns if SEL_IND_TICKER[0] in item], axis=1).copy()
+        data = data.join(DF_RETS[[SEL_IND_TICKER[0], LEAD_NAME]])
+        data = data.join(DF_PRICES[[f'{SEL_IND_TICKER[0]}_{item}' for item in ['High', 'Low', 'Open', 'Volume']]])
+        data = data.join(DF_PRICES[SEL_IND_TICKER].rename(columns={SEL_IND_TICKER[0]: f'{SEL_IND_TICKER[0]}_price'}))
+
+        data[f'{SEL_IND_TICKER[0]}_price'] = DF_PRICES[SEL_IND_TICKER[0]]
+        for item in ['High', 'Low', 'Open', 'Volume']:
+         data[f'{SEL_IND_TICKER[0]}_{item}'] = DF_PRICES[f'{SEL_IND_TICKER[0]}_{item}']
+
+        analysis_time = st.sidebar.select_slider('How many weeks would you like the analysis to run on?',
                                           options=range(1, 53),
                                           value=26)
         cv_samples_arima = st.sidebar.select_slider('Cross validation samples',
@@ -142,11 +152,11 @@ if __name__ == '__main__':
         st.write(f'The analysis will run for {analysis_time} weeks from {str(dt_start)} to {str(PULL_END_DATE)}')
 
         # set ARIMA values
-        mydata = pd.read_csv('mydata.csv')
-        model = sm.tsa.arima.ARIMA(mydata.value, order=(p, d, q))
+        from arima_values import p, d, q 
+        model = sm.tsa.arima.ARIMA(data['value'], order=(p, d, q))
 
         # cross validate ARIMA model
-        conf_mat, roc_score = get_arima_cv(data=mydata.value, model=model, cv_samples=cv_samples_arima,
+        conf_mat, roc_score = get_arima_cv(data=data['value'], model=model, cv_samples=cv_samples_arima,
                                    sample_len_weeks=analysis_time, start_date=PULL_START_DATE, end_date=dt_start)
 
         # fit ARIMA model to selected data
@@ -156,28 +166,28 @@ if __name__ == '__main__':
 
         # ST present output
         fig1, ax1 = plt.subplots(figsize=(12, 6))
-        ax1.plot(mydata.index, mydata.value, label='Original Data')
-        ax1.plot(mydata.index, modelfit.fittedvalues, label='ARIMA Model')
+        ax1.plot(data.index, data['value'], label='Original Data')
+        ax1.plot(data.index, modelfit.fittedvalues, label='ARIMA Model')
         ax1.set_xlabel('Date')
         ax1.set_ylabel('Value')
-        ax1.set_title('ARIMA Model vs. Original Data')
-        ax1.legend()
-        st.pyplot(fig1)
+       ax1.set_title('ARIMA Model vs. Original Data')
+       ax1.legend()
+       st.pyplot(fig1)
 
-        b1, b2 = st.columns([3, 1])
-        b1.write('ARIMA Model Summary:')
-        b1.write(modelfit.summary().as_html())
+       b1, b2 = st.columns([3, 1])
+       b1.write('ARIMA Model Summary:')
+       b1.write(modelfit.summary().as_html())
 
-        # plot
-        fig2, ax2 = plt.subplots(figsize=(5, 5))
-        sns.heatmap(conf_mat, ax=ax2, annot=True, cmap='winter')
-        ax2.set_title("Confusion Matrix")
+       # plot
+       fig2, ax2 = plt.subplots(figsize=(5, 5))
+       sns.heatmap(conf_mat, ax=ax2, annot=True, cmap='winter')
+       ax2.set_title("Confusion Matrix")
 
-        b2.write(fig2)
-        b2.write(f'ARIMA Model has ROC of {round(roc_score, 3)}')
-        if roc_score < .5:
-         b2.write(f'WARNING: This model has no predictive power') 
-        
+       b2.write(fig2)
+       b2.write(f'ARIMA Model has ROC of {round(roc_score, 3)}')
+       if roc_score < .5:
+       b2.write(f'WARNING: This model has no predictive power')
+    
          #st.plotly_chart(fig1, theme='streamlit', use_container_width=True)
 
     
