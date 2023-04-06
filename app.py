@@ -170,23 +170,23 @@ if __name__ == '__main__':
         ax1.plot(data.index, modelfit.fittedvalues, label='ARIMA Model')
         ax1.set_xlabel('Date')
         ax1.set_ylabel('Value')
-       ax1.set_title('ARIMA Model vs. Original Data')
-       ax1.legend()
-       st.pyplot(fig1)
+        ax1.set_title('ARIMA Model vs. Original Data')
+        ax1.legend()
+        st.pyplot(fig1)
 
-       b1, b2 = st.columns([3, 1])
-       b1.write('ARIMA Model Summary:')
-       b1.write(modelfit.summary().as_html())
+        b1, b2 = st.columns([3, 1])
+        b1.write('ARIMA Model Summary:')
+        b1.write(modelfit.summary().as_html())
 
-       # plot
-       fig2, ax2 = plt.subplots(figsize=(5, 5))
-       sns.heatmap(conf_mat, ax=ax2, annot=True, cmap='winter')
-       ax2.set_title("Confusion Matrix")
+        # plot
+        fig2, ax2 = plt.subplots(figsize=(5, 5))
+        sns.heatmap(conf_mat, ax=ax2, annot=True, cmap='winter')
+        ax2.set_title("Confusion Matrix")
 
-       b2.write(fig2)
-       b2.write(f'ARIMA Model has ROC of {round(roc_score, 3)}')
-       if roc_score < .5:
-       b2.write(f'WARNING: This model has no predictive power')
+        b2.write(fig2)
+        b2.write(f'ARIMA Model has ROC of {round(roc_score, 3)}')
+        if roc_score < .5:
+            b2.write(f'WARNING: This model has no predictive power')
     
          #st.plotly_chart(fig1, theme='streamlit', use_container_width=True)
 
