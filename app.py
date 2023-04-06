@@ -8,10 +8,10 @@ import seaborn as sns
 from datetime import datetime, timedelta, date
 
 from src.pull_data import load_data
-from src.utils import get_binary_metric, is_outlier
+from src.utils import is_outlier
 from src.filter import run_kalman_filter, get_kalman_cv
 from src.hmm import run_hmm, plot_hmm_states
-from src.get_toml import get_toml_data
+from src.toml import load_toml
 import os
 
 from settings import PROJECT_ROOT
@@ -19,7 +19,7 @@ from settings import PROJECT_ROOT
 if __name__ == '__main__':
 
     # get config globals
-    config = get_toml_data(os.path.join(PROJECT_ROOT, 'config.toml'))
+    config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
     config_all_index_dict = {y: x for y, x in list(config['indices'].values())}
     config_all_index = [item[0] for item in list(config['indices'].values())]
 
@@ -152,12 +152,13 @@ if __name__ == '__main__':
         st.write(f'The analysis will run for {analysis_time} weeks from {str(dt_start)} to {str(PULL_END_DATE)}')
 
         # set ARIMA values
-        from arima_values import p, d, q 
+        from arima_values import p, d, q
+        p, d, q = 2, 0, 5
         model = sm.tsa.arima.ARIMA(data['value'], order=(p, d, q))
 
         # cross validate ARIMA model
-        conf_mat, roc_score = get_arima_cv(data=data['value'], model=model, cv_samples=cv_samples_arima,
-                                   sample_len_weeks=analysis_time, start_date=PULL_START_DATE, end_date=dt_start)
+        # conf_mat, roc_score = get_arima_cv(data=data['value'], model=model, cv_samples=cv_samples_arima,
+        #                            sample_len_weeks=analysis_time, start_date=PULL_START_DATE, end_date=dt_start)
 
         # fit ARIMA model to selected data
         modelfit = model.fit(start_params=None)
