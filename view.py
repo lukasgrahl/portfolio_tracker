@@ -81,8 +81,8 @@ def set_up_sliders():
     cv_samples_kalman = c2.select_slider(config['streamlit_sliders_text']['kf_cv_samples'],
                                          options=range(*slider_kf_cv_samples),
                                          value=default_KF_cv_samples)
-    dt_start = PULL_END_DATE - timedelta(weeks=analysis_time)
-    TAB1.write(f'The analysis will run for {analysis_time} weeks from {str(dt_start)} to {str(PULL_END_DATE)}')
+    test_sample_start = PULL_END_DATE - timedelta(weeks=analysis_time)
+    TAB1.write(f'The analysis will run for {analysis_time} weeks from {str(test_sample_start)} to {str(PULL_END_DATE)}')
 
     TAB2.write('ARIMA')
 
@@ -95,11 +95,12 @@ def set_up_sliders():
     hmm_init = c3.select_slider(config['streamlit_sliders_text']['hmm_start_init'],
                                 options=range(*slider_hmm_start_init), value=default_HMM_start_init)
 
-    return hmm_states, cv_samples, hmm_init, dt_start, measurement_noise, analysis_time, cv_samples_kalman
+    return hmm_states, cv_samples, hmm_init, test_sample_start, measurement_noise, analysis_time, cv_samples_kalman
 
 
 def st_plot_output(df_prices, kf_xtrue, kf_xpred, kf_xfilt, kf_conf_mat, kf_roc_score,
-                   hmm_cv_statesg, hmm_cv_states, hmm_xtrain, hmm_xtest, hmm_train_states, hmm_test_states):
+                   hmm_cv_statesg, hmm_cv_states, hmm_xtrain, hmm_xtest, hmm_train_states, hmm_test_states,
+                   arma_true, arma_pred):
 
     fig1 = px.line(df_prices.reset_index(), y=SEL_IND_TICKER[0], x='index')
     SECTION_1.plotly_chart(fig1, theme='streamlit', use_container_width=True)
@@ -120,8 +121,12 @@ def st_plot_output(df_prices, kf_xtrue, kf_xpred, kf_xfilt, kf_conf_mat, kf_roc_
         b2.write(f'WARNING: This model has no predictive power')
 
     # arima
-    fig1 = px.line(df_prices.reset_index(), y=SEL_IND_TICKER[0], x='index')
-    TAB2.plotly_chart(fig1, theme='streamlit', use_container_width=True)
+    TAB2.line_chart(pd.concat([pd.Series(arma_true, name='ARMA_true'),
+                               pd.Series(arma_pred , name='ARMA_pred')], axis=1))
+    # fig, ax = plt.subplots(figsize=(15, 5))
+    # ax.plot(arma_true)
+    # ax.plot(arma_pred)
+    # TAB2.plotly_chart(fig, theme='streamlit', use_container_width=True)
 
     # hmm
     d1, d2 = TAB3.columns([1, 1])
