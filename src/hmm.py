@@ -175,7 +175,7 @@ def get_CV_data(data_arr: np.array, cols_list: list, target_var_t: str, target_v
     cv_out = []
 
     for i in range(0, no_samples):
-        printProgBar(i, no_samples - 1)
+        printProgBar(i, no_samples - 1, 'HMM cross validation')
 
         # random sample len
         sample_len = randint(cv_sample_sizes[0], cv_sample_sizes[1])
@@ -188,10 +188,7 @@ def get_CV_data(data_arr: np.array, cols_list: list, target_var_t: str, target_v
         out = np.array(features, dtype='object')
         cv_out.append(out)
 
-    # user defined, depending on
-    ret_cols = deepcopy(cols)
-
-    return cv_out, ret_cols
+    return cv_out, cols
 
 
 @st.cache_resource()

@@ -200,7 +200,8 @@ def kalman_filter(xdim: int, zdim: int, p: int, q: int, d: int, x0: float, P0: f
     return X_out, P_out, X_pred, P_pred, LL_out
 
 
-def run_kalman_filter(endog: list, exog: list, data: pd.DataFrame, measurement_noise: float, **kwargs) \
+def run_kalman_filter(endog: list, exog: list, data: pd.DataFrame, measurement_noise: float, p: int, q: int,
+                      d: int, ma_resid: np.array, arma_params: dict, **kwargs) \
         -> (pd.DataFrame, pd.DataFrame, pd.DataFrame):
     """
     Uses set_up_kalamn_filter and kalman_filter to run the filter entirely off a dataset
@@ -211,16 +212,16 @@ def run_kalman_filter(endog: list, exog: list, data: pd.DataFrame, measurement_n
     :return: true endogenous values,  predicted endogenous variable, filtered endogenous variable
     """
     # this should later be replaced by an automatic ARMA pq definition
-    p, q = 2, 1
+    # p, q = 2, 1
     # get arima output
-    p, q, d, ma_resid, arima_params = get_ARMA_test(p, q, data, endog, exog)
+    # p, q, d, ma_resid, arima_params = get_ARMA_test(p, q, data, endog, exog)
 
     ####### Kalman Filter #####
     xdim = p + d + q
     zdim = xdim
     # set up filter
     T, Q, Z, H, x0, P0, zs, state_vars, zs_index = set_up_kalman_filter(p, q, d, xdim, zdim, data, ma_resid,
-                                                                        arima_params, endog, exog, measurement_noise)
+                                                                        arma_params, endog, exog, measurement_noise)
     # run filter
     X_out, P_out, X_pred, P_pred, LL_out = kalman_filter(xdim, zdim, p, q, d, x0, P0, zs, T, Q, Z, H, state_vars)
 
@@ -241,7 +242,8 @@ def run_kalman_filter(endog: list, exog: list, data: pd.DataFrame, measurement_n
 
 @st.cache_resource
 def get_kalman_cv(data: pd.DataFrame, endog: list, exog: list, measurement_noise: float,
-                  cv_index_len: int, sample_len_weeks: int, no_samples: int = 20):
+                  cv_index_len: int, sample_len_weeks: int, p: int, q: int, d: int, ma_resid: np.array,
+                  arma_params: dict, no_samples: int = 20):
     """
     Function that uses run_kalaman_filter to run the filter on several samples to obtain a cross validated performance
     estimate
@@ -261,7 +263,8 @@ def get_kalman_cv(data: pd.DataFrame, endog: list, exog: list, measurement_noise
 
         df_rets_sel = data.iloc[cv_start: cv_end].copy()
 
-        df_xtrue, df_xpred, df_xfilt = run_kalman_filter(endog, exog, df_rets_sel, measurement_noise)
+        df_xtrue, df_xpred, df_xfilt = run_kalman_filter(endog, exog, df_rets_sel, measurement_noise, p, q, d,
+                                                         ma_resid, arma_params)
         df_xtrue = df_xtrue.iloc[5:]
         df_xpred = df_xpred.iloc[5:]
         cv_output.append([df_xtrue.values.reshape(-1), df_xpred.iloc[:-1].values.reshape(-1)])
