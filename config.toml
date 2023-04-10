@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-[indices]
-#names = ['EURO STOXX 50', 'FTSE 100', 'OMX Stockholm 30', 'CAC 40', 'DAX', 'MDAX', 'TECDAX', 'IBEX 35', 'S&P 500', 'DOW JONES', 'AEX', 'NASDAQ 100']
-#tickers = ['^STOXX50E', '^FTSE', '^OMX', '^FCHI', '^GDAXI', '^MDAXI', '^TECDAX', '^IBEX', '^GSPC', '^DJI', '^AEX', '^IXIC']
-=======
+
 [page_set_up]
 title = 'A binary guide to index investment'
 select_ind_text = 'Whate index would you like to analyse'
@@ -13,7 +9,6 @@ section_2_header = 'One day ahead forecasting output'
 tab_options = ["Kalman Filter", "ARMA", "Hidden Markov Model"]
 
 [indices]
->>>>>>> upstream
 EURO_STOXX_50 = ['EURO STOXX 50', '^STOXX50E']
 FTSE_100 = ['FTSE 100', '^FTSE']
 OMX_Stockholm_30 = ['OMX Stockholm 30', '^OMX']
@@ -31,6 +26,9 @@ NASDAQ_100 = ['NASDAQ 100', '^IXIC']
 lead_suffix = 'lead'
 train_test_size = 0.9
 outlier_std_interval = 5
+n_largest_composits = 5
+p_max = 2
+q_max = 2
 
 [default_values]
 pull_start_date = [2020, 1, 1]
@@ -41,6 +39,7 @@ hmm_no_states = 3
 hmm_cv_samples = 50 #2_000
 hmm_start_init = 2 # 20
 hmm_cv_sample_sizes = [30, 60]
+arma_analaysis_time_days = 35
 
 [streamlit_sliders]
 kf_measurement_noise = [0, 2.1, 0.01]
@@ -50,8 +49,6 @@ hmm_no_states = [1, 6]
 hmm_cv_samples = [0, 51_000, 50]
 hmm_start_init = [0, 110, 1]
 
-<<<<<<< HEAD
-=======
 [streamlit_sliders_text]
 kf_measurement_noise = 'Kalman Filter measurement noise'
 kf_analysis_time = "How many weeks would you like the analysis to run on?"
@@ -59,9 +56,3 @@ kf_cv_samples = "How many cross validation samples should be taken?"
 hmm_no_states = "How many hidden states should be identified?"
 hmm_cv_samples = "How many cross validation samples should be taken?"
 hmm_start_init = "What initialisation value should be passed to the HMM?"
-
->>>>>>> upstream
-
-
-
-
