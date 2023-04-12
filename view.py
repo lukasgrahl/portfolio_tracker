@@ -20,7 +20,7 @@ global SECTION_1, SECTION_2, SECTION_3, SEL_IND, SEL_IND_TICKER, PULL_START_DATE
 config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
 config_all_index_dict = {y: x for y, x in list(config['indices'].values())}
 config_all_index = [item[0] for item in list(config['indices'].values())]
-# get slier values
+# get slider values
 slider_kf_measurement = config['streamlit_sliders']['kf_measurement_noise']
 slider_kf_analysis_time = config['streamlit_sliders']['kf_analysis_time']
 slider_kf_cv_samples = config['streamlit_sliders']['kf_cv_samples']
