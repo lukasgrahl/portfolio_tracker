@@ -23,30 +23,12 @@ def apply_datetime_format(x, dt_format: str = None) -> datetime.datetime:
             pass
 
         try:
-            x = datetime.datetime.strptime(x, "%m.%d.%Y")
-            return x
-        except ValueError:
-            pass
-
-        try:
             x = datetime.datetime.strptime(x, "%d/%m/%Y")
             return x
         except ValueError:
             pass
 
-        try:
-            x = datetime.datetime.strptime(x, "%d.%m.%Y %H:%M:%S")
-            return x
-        except ValueError:
-            pass
-
-        try:
-            x = datetime.datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
-            return x
-        except ValueError:
-            pass
-
-        print("Datetime Assignment failed")
+        # print("Datetime Assignment failed")
         raise ValueError(x, "Format not in the collection")
     else:
         return datetime.datetime.strptime(x, dt_format)

@@ -1,3 +1,4 @@
+
 [page_set_up]
 title = 'A binary guide to index investment'
 select_ind_text = 'Whate index would you like to analyse'
@@ -25,6 +26,9 @@ NASDAQ_100 = ['NASDAQ 100', '^IXIC']
 lead_suffix = 'lead'
 train_test_size = 0.9
 outlier_std_interval = 5
+n_largest_composits = 5
+p_max = 2
+q_max = 2
 
 [default_values]
 pull_start_date = [2020, 1, 1]
@@ -35,6 +39,7 @@ hmm_no_states = 3
 hmm_cv_samples = 50 #2_000
 hmm_start_init = 2 # 20
 hmm_cv_sample_sizes = [30, 60]
+arma_analaysis_time_days = 35
 
 [streamlit_sliders]
 kf_measurement_noise = [0, 2.1, 0.01]
@@ -51,8 +56,3 @@ kf_cv_samples = "How many cross validation samples should be taken?"
 hmm_no_states = "How many hidden states should be identified?"
 hmm_cv_samples = "How many cross validation samples should be taken?"
 hmm_start_init = "What initialisation value should be passed to the HMM?"
-
-
-
-
-
