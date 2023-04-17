@@ -36,14 +36,14 @@ if __name__ == "__main__":
 
     #### ARMA ####
     from datetime import timedelta
-    from src.arma import get_ARMA_test
+    from src.arma import get_ARMA
     ind = (test_sample_start - timedelta(config['default_values']['arma_analaysis_time_days']))
     p, q, d, ma_residuals, arma_params, arma_mod = grid_search_arma(config['data']['p_max'], config['data']['q_max'],
                                                                     DF_RETS.loc[ind: test_sample_start], endog=[LEAD_NAME],
                                                                     exog=SEL_IND_NLARGEST_TICKERS.copy(), sup_warnings=True)
 
-    _, _, _, _, _, arma_mod = get_ARMA_test(p, q, DF_RETS.loc[test_sample_start:].iloc[:-1], endog=[LEAD_NAME],
-                                            exog=SEL_IND_NLARGEST_TICKERS.copy(), sup_warnings=True, vals_only=True)
+    _, _, _, _, _, arma_mod = get_ARMA(p, q, DF_RETS.loc[test_sample_start:].iloc[:-1], endog=[LEAD_NAME],
+                                       exog=SEL_IND_NLARGEST_TICKERS.copy(), sup_warnings=True, vals_only=True)
     arma_predict= arma_mod.predict()
     arma_true = DF_RETS.loc[test_sample_start:, ].iloc[:-1][SEL_IND_TICKER].values.reshape(-1)
 

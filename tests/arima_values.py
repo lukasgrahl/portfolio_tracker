@@ -20,7 +20,7 @@ if __name__ == '__main__':
                                                                         n_largest=config['data']['n_largest_composits'],
                                                                         no_internet=True)
 
-    p, q, d, residuals, params = grid_search_arma(5, 1, DF_RETS.iloc[-50:], endog=[endog],
+    p, q, d, residuals, params, mod = grid_search_arma(5, 1, DF_RETS.iloc[-50:], endog=[endog],
                                                   exog=SEL_IND_NLARGEST_TICKERS, sup_warnings=True)
 
     print(p, q)
