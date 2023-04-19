@@ -2,6 +2,8 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 
+import logging
+
 import pandas_datareader as pdread
 import yfinance as yf
 
@@ -15,9 +17,11 @@ from settings import PROJECT_ROOT
 
 config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
 from settings import DATA_DIR
+from src.logger import catch_and_log_errors
 
 
 @st.cache_data()
+@catch_and_log_errors
 def load_data(sel_ind, sel_ind_ticker, pull_data_start: str, pull_data_end: str,
               n_largest: int = 5, no_internet: bool = False):
     if no_internet:
@@ -102,13 +106,16 @@ def get_index_nlargest_composits(index_name, n: int = 5) -> (list, pd.DataFrame,
     for item in tickers:
         # capture error on getting market cap, not recoreded for some stocks
         try:
-            data.append(pdread.get_quote_yahoo(item)['marketCap'].values[0])
+            data.append(yf.Ticker(item).info['marketCap'])
+            # data.append(pdread.get_quote_yahoo(item)['marketCap'].values[0])
             counter += 1
         except Exception as e:
+            logging.info(f'{item} market cap was not found and raised ERROR: {e}')
             data.append(0)
             counter += 0
 
     df = pd.DataFrame(index=tickers, columns=['market_cap'], data=data)
+
     market_cap = df.sort_values('market_cap', ascending=False)
 
     return tickers, market_cap, market_cap.index[:n].values, counter / len(tickers)

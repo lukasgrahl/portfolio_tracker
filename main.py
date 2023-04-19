@@ -11,13 +11,13 @@ import view
 
 
 config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
-default_pull_start_date = config['default_values']['pull_start_date']
-default_KF_cv_samples = config['default_values']['kf_cv_samples']
-default_KF_analysis_time = config['default_values']['kf_analysis_time']
-default_KF_measurement_noise = config['default_values']['kf_measurement_noise']
-default_HMM_no_states = config['default_values']['hmm_no_states']
-default_HMM_cv_samples = config['default_values']['hmm_cv_samples']
-default_HMM_start_init = config['default_values']['hmm_start_init']
+# default_pull_start_date = config['default_values']['pull_start_date']
+# default_KF_cv_samples = config['default_values']['kf_cv_samples']
+# default_KF_analysis_time = config['default_values']['kf_analysis_time']
+# default_KF_measurement_noise = config['default_values']['kf_measurement_noise']
+# default_HMM_no_states = config['default_values']['hmm_no_states']
+# default_HMM_cv_samples = config['default_values']['hmm_cv_samples']
+# default_HMM_start_init = config['default_values']['hmm_start_init']
 default_HMM_cv_sample_sizes = config['default_values']['hmm_cv_sample_sizes']
 # get data related vals
 train_test_size = config['data']['train_test_size']
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     DF_PRICES, DF_RETS, SEL_IND_NLARGEST_TICKERS, LEAD_NAME = load_data(SEL_IND, SEL_IND_TICKER,
                                                                         str(PULL_START_DATE), str(PULL_END_DATE),
                                                                         n_largest=config['data']['n_largest_composits'])
-                                                                        # no_internet=True<)
+
     _ = view.set_up_sliders()
     hmm_states, cv_samples, hmm_init, test_sample_start, measurement_noise, analysis_time, cv_samples_kalman = _
 

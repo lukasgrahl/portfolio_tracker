@@ -60,8 +60,6 @@ def grid_search_arma(p_max: int, q_max: int, data: pd.DataFrame, endog: list,
     print(len(pq_combinations))
     out_pqd, out_mod = [], []
     for i in range(0, len(pq_combinations) - 1):
-        printProgBar(i, len(pq_combinations)-1, 'ARMA grid search')
-
         p, q = pq_combinations[i]
         p, q, d, ma_resid, arima_params, mod = get_ARMA(p, q, data, endog=endog, exog=exog, **kwargs)
         out_pqd.append([p, q, d, mod.bic])
