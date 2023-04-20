@@ -17,11 +17,9 @@ from settings import PROJECT_ROOT
 
 config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
 from settings import DATA_DIR
-from src.logger import catch_and_log_errors
 
 
 @st.cache_data()
-@catch_and_log_errors
 def load_data(sel_ind, sel_ind_ticker, pull_data_start: str, pull_data_end: str,
               n_largest: int = 5, no_internet: bool = False):
     if no_internet:
