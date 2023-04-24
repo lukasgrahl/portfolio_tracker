@@ -5,34 +5,14 @@ import pandas as pd
 from itertools import chain
 
 from pypfopt.risk_models import CovarianceShrinkage
-from statsmodels.tsa.arima.model import ARIMA
 from filterpy.kalman import KalmanFilter
 from datetime import datetime, timedelta
 
 from random import randint
-import streamlit as st
 
 from src.utils import get_ARlags, get_binary_metric
 
 logger = logging.getLogger('main_log')
-
-
-def get_ARMA_test(p, q, train: pd.DataFrame, endog: list, exog: list):
-    """
-    Placeholder function for ARMA model tbd
-    :param p:
-    :param q:
-    :param train:
-    :param endog:
-    :param exog:
-    :return:
-    """
-    mod = ARIMA(endog=train[endog], exog=train[exog], order=(p, 0, q))
-    res = mod.fit()
-    ma_resid = res.resid
-    p, q, d = mod.k_ar, mod.k_ma, mod.k_exog
-    arima_params = dict(zip(res.param_names, res.params))
-    return p, q, d, ma_resid, arima_params
 
 
 def set_up_kalman_filter(p: int, q: int, d: int, xdim: int, zdim: int, data: pd.DataFrame,
@@ -209,6 +189,11 @@ def run_kalman_filter(endog: list, exog: list, data: pd.DataFrame, measurement_n
         -> (pd.DataFrame, pd.DataFrame, pd.DataFrame):
     """
     Uses set_up_kalamn_filter and kalman_filter to run the filter entirely off a dataset
+    :param q: AR lags
+    :param p: MA lags
+    :param d: number of exogenous variables
+    :param ma_resid: parameters of the arma model, which are merged into the transition matrix T
+    :param arma_params: parameters of the arma model, which are merged into the transition matrix T
     :param endog: list of endoenous variables names
     :param exog: list of exogenouse variables names
     :param data: data frame of returns and prices
@@ -250,6 +235,11 @@ def get_kalman_cv(data: pd.DataFrame, endog: list, exog: list, measurement_noise
     """
     Function that uses run_kalaman_filter to run the filter on several samples to obtain a cross validated performance
     estimate
+    :param ma_resid: residuals for the MA component in the model
+    :param q: AR lags
+    :param p: MA lags
+    :param d: number of exogenous variables
+    :param arma_params: parameters of the arma model, which are merged into the transition matrix T
     :param data: dataframe of returns and prices
     :param endog: list of endogenous variables
     :param exog: list of exogenous variables

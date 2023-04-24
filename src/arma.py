@@ -1,10 +1,7 @@
 import pandas as pd
 import numpy as np
 import streamlit as st
-
 from statsmodels.tsa.arima.model import ARIMA
-from src.utils import printProgBar
-
 import warnings
 from statsmodels.tools.sm_exceptions import ConvergenceWarning, ValueWarning
 

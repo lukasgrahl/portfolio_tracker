@@ -13,7 +13,6 @@ import logging
 
 logger = logging.getLogger('etl_log')
 init_logging('main.log', discard_old_info=True)
-logger.warning('test')
 
 
 def main():

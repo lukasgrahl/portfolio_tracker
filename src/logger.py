@@ -11,21 +11,22 @@ import os
 logger = logging.getLogger()
 
 
-def init_logging(file, console_level='INFO', file_level='INFO', discard_old_info=True):
+def init_logging(file, console_level='INFO', discard_old_info=True):
+    """
+    Function initialises and saves log file
+    :param file: path\filename
+    :param console_level: logging level for console print
+    :param discard_old_info: if True old log file will be overwritten, otherwise appended
+    """
     path = os.path.join(LOGS_DIR, file)
 
     if discard_old_info:
         with open(path, "w") as f:
             f.write('')
 
-    console_format = '%(funcname)s - %(message)s'
-    logging.basicConfig(level=console_level) # format=console_format)
-
+    logging.basicConfig(level=console_level)
     file_handler = logging.FileHandler(path)
-    file_format = logging.Formatter('%(asctime) %(name)s %(funcname)s %(levelname)s %(message)s')
-    # file_handler.setFormatter(file_format)
     logger.addHandler(file_handler)
 
     logger.info(f'Begin Program | user {os.getlogin()}')
-
     pass

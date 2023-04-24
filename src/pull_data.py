@@ -12,25 +12,21 @@ from settings import PROJECT_ROOT, DATA_DIR
 
 import logging
 logger = logging.getLogger('main_log')
-
 config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
 
 
 def load_data(sel_ind, sel_ind_ticker, pull_data_start: str, pull_data_end: str,
-              n_largest: int = 5, no_internet: bool = False):
-
-    if no_internet:
-        df_prices = pd.read_csv(os.path.join(DATA_DIR, 'prices.csv')).rename(columns={'Unnamed: 0': 'index'})
-        df_prices['index'] = df_prices['index'].apply(lambda x: apply_datetime_format(x))
-        df_prices.set_index('index', inplace=True)
-
-        df_rets = pd.read_csv(os.path.join(DATA_DIR, 'returns.csv')).rename(columns={'Unnamed: 0': 'index'})
-        df_rets['index'] = df_rets['index'].apply(lambda x: apply_datetime_format(x))
-        df_rets.set_index('index', inplace=True)
-
-        sel_ind_nlargest_tickers = ['MOH.F', 'ASME.F', 'PROSY', 'LOR.F', 'HMI.F']
-        lead_name = f"{sel_ind_ticker[0]}_{config['data']['lead_suffix']}"
-        return df_prices, df_rets, sel_ind_nlargest_tickers, lead_name
+              n_largest: int = 5) -> (pd.DataFrame, pd.DataFrame, list, str):
+    """
+    Function executes all the below function for a given stock market index. It pulls the n-largest composits
+     for and index, their return data as well as the index return data
+    :param sel_ind: the index
+    :param sel_ind_ticker: yfinance ticker of the index
+    :param pull_data_start: start date to pull data from
+    :param pull_data_end: last date for data to be pulled
+    :param n_largest: number of largest index composits to be pulled
+    :return: prices df, returns df, list of largest composits, name of the index shifted by 1 lead variable
+    """
 
     sel_ind_composit_tickers, _, sel_ind_nlargest_tickers, success = get_index_nlargest_composits(sel_ind, n=n_largest)
     if success <= .8: logger.warning(f'Market cap was only available for {success * 100: .1f} %  of composits')
@@ -89,6 +85,7 @@ def get_yf_ticker_data(tickers: list, start: str, end: str, price_kind: list = [
 def get_index_nlargest_composits(index_name, n: int = 5) -> (list, pd.DataFrame, list, float):
     """
     Pull list of an index's composits market caps and return n largest composits
+    :param index_name: name of the index
     :param n: number of largest composits by market cap
     :return: index tickers, market cap by composit, n largest composits, succes rate on pulling stock tickers
     """

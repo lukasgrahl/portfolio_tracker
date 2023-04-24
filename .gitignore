@@ -131,3 +131,4 @@ dmypy.json
 /notebooks_lag
 /env_bayes_filter
 .idea/
+/tests
