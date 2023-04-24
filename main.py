@@ -5,46 +5,45 @@ from src.arma import grid_search_arma
 from src.utils import is_outlier
 from src.hmm import run_hmm
 import os
-
 from settings import PROJECT_ROOT
 import view
 
+from src.logger import init_logging
+import logging
 
-config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
-default_pull_start_date = config['default_values']['pull_start_date']
-default_KF_cv_samples = config['default_values']['kf_cv_samples']
-default_KF_analysis_time = config['default_values']['kf_analysis_time']
-default_KF_measurement_noise = config['default_values']['kf_measurement_noise']
-default_HMM_no_states = config['default_values']['hmm_no_states']
-default_HMM_cv_samples = config['default_values']['hmm_cv_samples']
-default_HMM_start_init = config['default_values']['hmm_start_init']
-default_HMM_cv_sample_sizes = config['default_values']['hmm_cv_sample_sizes']
-# get data related vals
-train_test_size = config['data']['train_test_size']
-outlier_interval = config['data']['outlier_std_interval']
+logger = logging.getLogger('etl_log')
+init_logging('main.log', discard_old_info=True)
 
-if __name__ == "__main__":
+
+def main():
+    config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
+    default_HMM_cv_sample_sizes = config['default_values']['hmm_cv_sample_sizes']
+    train_test_size = config['data']['train_test_size']
+    outlier_interval = config['data']['outlier_std_interval']
+
     #### ST Set Up ####
     SEL_IND, SEL_IND_TICKER, PULL_START_DATE, PULL_END_DATE = view.set_up_page()
 
     DF_PRICES, DF_RETS, SEL_IND_NLARGEST_TICKERS, LEAD_NAME = load_data(SEL_IND, SEL_IND_TICKER,
                                                                         str(PULL_START_DATE), str(PULL_END_DATE),
                                                                         n_largest=config['data']['n_largest_composits'])
-                                                                        # no_internet=True<)
+
     _ = view.set_up_sliders()
     hmm_states, cv_samples, hmm_init, test_sample_start, measurement_noise, analysis_time, cv_samples_kalman = _
 
     #### ARMA ####
     from datetime import timedelta
-    from src.arma import get_ARMA_test
+    from src.arma import get_ARMA
     ind = (test_sample_start - timedelta(config['default_values']['arma_analaysis_time_days']))
     p, q, d, ma_residuals, arma_params, arma_mod = grid_search_arma(config['data']['p_max'], config['data']['q_max'],
-                                                                    DF_RETS.loc[ind: test_sample_start], endog=[LEAD_NAME],
-                                                                    exog=SEL_IND_NLARGEST_TICKERS.copy(), sup_warnings=True)
+                                                                    DF_RETS.loc[ind: test_sample_start],
+                                                                    endog=[LEAD_NAME],
+                                                                    exog=SEL_IND_NLARGEST_TICKERS.copy(),
+                                                                    sup_warnings=True)
 
-    _, _, _, _, _, arma_mod = get_ARMA_test(p, q, DF_RETS.loc[test_sample_start:].iloc[:-1], endog=[LEAD_NAME],
-                                            exog=SEL_IND_NLARGEST_TICKERS.copy(), sup_warnings=True, vals_only=True)
-    arma_predict= arma_mod.predict()
+    _, _, _, _, _, arma_mod = get_ARMA(p, q, DF_RETS.loc[test_sample_start:].iloc[:-1], endog=[LEAD_NAME],
+                                       exog=SEL_IND_NLARGEST_TICKERS.copy(), sup_warnings=True, vals_only=True)
+    arma_predict = arma_mod.predict()
     arma_true = DF_RETS.loc[test_sample_start:, ].iloc[:-1][SEL_IND_TICKER].values.reshape(-1)
 
     #### Kalman Filter ####
@@ -79,8 +78,14 @@ if __name__ == "__main__":
     mod, train_cv_states, hmm_cv_states, hmm_cv_statesg, test, train, train_cv = run_out
     _, _, hmm_xtest, hmm_test_states = test
     _, _, hmm_xtrain, hmm_train_states = train
-    X_train_cv, y_train_cv = train_cv
 
     # PLOT
     view.st_plot_output(DF_PRICES, kf_xtrue, kf_xpred, kf_xfilt, kf_conf_mat, kf_roc_score, hmm_cv_statesg,
-                        hmm_cv_states, hmm_xtrain, hmm_xtest, hmm_train_states, hmm_test_states, arma_true, arma_predict)
+                        hmm_cv_states, hmm_xtrain, hmm_xtest, hmm_train_states, hmm_test_states, arma_true,
+                        arma_predict)
+
+    pass
+
+
+if __name__ == "__main__":
+    main()

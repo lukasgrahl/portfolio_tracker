@@ -1,34 +1,18 @@
+import logging
+
 import numpy as np
 import pandas as pd
 from itertools import chain
 
 from pypfopt.risk_models import CovarianceShrinkage
-from statsmodels.tsa.arima.model import ARIMA
 from filterpy.kalman import KalmanFilter
 from datetime import datetime, timedelta
 
 from random import randint
-import streamlit as st
 
 from src.utils import get_ARlags, get_binary_metric
 
-
-def get_ARMA_test(p, q, train: pd.DataFrame, endog: list, exog: list):
-    """
-    Placeholder function for ARMA model tbd
-    :param p:
-    :param q:
-    :param train:
-    :param endog:
-    :param exog:
-    :return:
-    """
-    mod = ARIMA(endog=train[endog], exog=train[exog], order=(p, 0, q))
-    res = mod.fit()
-    ma_resid = res.resid
-    p, q, d = mod.k_ar, mod.k_ma, mod.k_exog
-    arima_params = dict(zip(res.param_names, res.params))
-    return p, q, d, ma_resid, arima_params
+logger = logging.getLogger('main_log')
 
 
 def set_up_kalman_filter(p: int, q: int, d: int, xdim: int, zdim: int, data: pd.DataFrame,
@@ -205,6 +189,11 @@ def run_kalman_filter(endog: list, exog: list, data: pd.DataFrame, measurement_n
         -> (pd.DataFrame, pd.DataFrame, pd.DataFrame):
     """
     Uses set_up_kalamn_filter and kalman_filter to run the filter entirely off a dataset
+    :param q: AR lags
+    :param p: MA lags
+    :param d: number of exogenous variables
+    :param ma_resid: parameters of the arma model, which are merged into the transition matrix T
+    :param arma_params: parameters of the arma model, which are merged into the transition matrix T
     :param endog: list of endoenous variables names
     :param exog: list of exogenouse variables names
     :param data: data frame of returns and prices
@@ -240,13 +229,17 @@ def run_kalman_filter(endog: list, exog: list, data: pd.DataFrame, measurement_n
     return df_xtrue, df_xpred, df_xfilt
 
 
-@st.cache_resource
 def get_kalman_cv(data: pd.DataFrame, endog: list, exog: list, measurement_noise: float,
                   cv_index_len: int, sample_len_weeks: int, p: int, q: int, d: int, ma_resid: np.array,
                   arma_params: dict, no_samples: int = 20):
     """
     Function that uses run_kalaman_filter to run the filter on several samples to obtain a cross validated performance
     estimate
+    :param ma_resid: residuals for the MA component in the model
+    :param q: AR lags
+    :param p: MA lags
+    :param d: number of exogenous variables
+    :param arma_params: parameters of the arma model, which are merged into the transition matrix T
     :param data: dataframe of returns and prices
     :param endog: list of endogenous variables
     :param exog: list of exogenous variables
@@ -257,17 +250,25 @@ def get_kalman_cv(data: pd.DataFrame, endog: list, exog: list, measurement_noise
     :return: binary (up/down returns) confusion matrix, ROC area under the curve score
     """
     cv_output = []
+    counter = 0
     for i in range(0, no_samples):
         cv_start = randint(0, (cv_index_len - sample_len_weeks * 5))  # take
         cv_end = cv_start + (sample_len_weeks * 5)  #
-
         df_rets_sel = data.iloc[cv_start: cv_end].copy()
 
         df_xtrue, df_xpred, df_xfilt = run_kalman_filter(endog, exog, df_rets_sel, measurement_noise, p, q, d,
                                                          ma_resid, arma_params)
         df_xtrue = df_xtrue.iloc[5:]
         df_xpred = df_xpred.iloc[5:]
-        cv_output.append([df_xtrue.values.reshape(-1), df_xpred.iloc[:-1].values.reshape(-1)])
+
+        # exclude samples with different length
+        if (len(df_xtrue) == sample_len_weeks * 5 - 6) and (len(df_xpred) - 1 == sample_len_weeks * 5 - 6):
+            cv_output.append([df_xtrue.values.reshape(-1), df_xpred.iloc[:-1].values.reshape(-1)])
+        else:
+            counter += 1
+
+    if counter / cv_index_len > .1:
+        logging.warning(f'Kalman Cross valiation recorded an index error more than {counter/cv_index_len} of times')
 
     cv_output = np.array(cv_output)
     conf_mat, roc_score = get_binary_metric(np.concatenate(cv_output[:, 0, :]),

@@ -15,7 +15,6 @@ import plotly.express as px
 
 from settings import PROJECT_ROOT
 
-global SECTION_1, SECTION_2, SECTION_3, SEL_IND, SEL_IND_TICKER, PULL_START_DATE, PULL_END_DATE, TAB1, TAB2, TAB3
 
 config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
 config_all_index_dict = {y: x for y, x in list(config['indices'].values())}
@@ -123,10 +122,6 @@ def st_plot_output(df_prices, kf_xtrue, kf_xpred, kf_xfilt, kf_conf_mat, kf_roc_
     # arima
     TAB2.line_chart(pd.concat([pd.Series(arma_true, name='ARMA_true'),
                                pd.Series(arma_pred , name='ARMA_pred')], axis=1))
-    # fig, ax = plt.subplots(figsize=(15, 5))
-    # ax.plot(arma_true)
-    # ax.plot(arma_pred)
-    # TAB2.plotly_chart(fig, theme='streamlit', use_container_width=True)
 
     # hmm
     d1, d2 = TAB3.columns([1, 1])
