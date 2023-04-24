@@ -8,9 +8,15 @@ import os
 from settings import PROJECT_ROOT
 import view
 
+from src.logger import init_logging
+import logging
+
+logger = logging.getLogger('etl_log')
+init_logging('main.log', discard_old_info=True)
+logger.warning('test')
+
 
 def main():
-
     config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
     default_HMM_cv_sample_sizes = config['default_values']['hmm_cv_sample_sizes']
     train_test_size = config['data']['train_test_size']
@@ -73,7 +79,6 @@ def main():
     mod, train_cv_states, hmm_cv_states, hmm_cv_statesg, test, train, train_cv = run_out
     _, _, hmm_xtest, hmm_test_states = test
     _, _, hmm_xtrain, hmm_train_states = train
-    X_train_cv, y_train_cv = train_cv
 
     # PLOT
     view.st_plot_output(DF_PRICES, kf_xtrue, kf_xpred, kf_xfilt, kf_conf_mat, kf_roc_score, hmm_cv_statesg,

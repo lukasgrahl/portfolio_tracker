@@ -1,27 +1,24 @@
+import os
 import streamlit as st
 import numpy as np
 import pandas as pd
-
-import logging
-
-import pandas_datareader as pdread
 import yfinance as yf
-
 from itertools import chain
+from pytickersymbols import PyTickerSymbols
 
 from src.utils import apply_datetime_format
-from pytickersymbols import PyTickerSymbols
 from src.toml import load_toml
-import os
-from settings import PROJECT_ROOT
+from settings import PROJECT_ROOT, DATA_DIR
+
+import logging
+logger = logging.getLogger('main_log')
 
 config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
-from settings import DATA_DIR
 
 
-@st.cache_data()
 def load_data(sel_ind, sel_ind_ticker, pull_data_start: str, pull_data_end: str,
               n_largest: int = 5, no_internet: bool = False):
+
     if no_internet:
         df_prices = pd.read_csv(os.path.join(DATA_DIR, 'prices.csv')).rename(columns={'Unnamed: 0': 'index'})
         df_prices['index'] = df_prices['index'].apply(lambda x: apply_datetime_format(x))
@@ -36,7 +33,7 @@ def load_data(sel_ind, sel_ind_ticker, pull_data_start: str, pull_data_end: str,
         return df_prices, df_rets, sel_ind_nlargest_tickers, lead_name
 
     sel_ind_composit_tickers, _, sel_ind_nlargest_tickers, success = get_index_nlargest_composits(sel_ind, n=n_largest)
-    if success <= .8: st.write(f'Market cap was only available for {success * 100: .1f} %  of composits')
+    if success <= .8: logger.warning(f'Market cap was only available for {success * 100: .1f} %  of composits')
     df_prices = get_yf_ticker_data(sel_ind_nlargest_tickers, pull_data_start, pull_data_end)
     df_prices = df_prices.join(get_yf_ticker_data(sel_ind_ticker, pull_data_start, pull_data_end,
                                                   price_kind=['Open', 'High', 'Low', 'Volume', 'Adj Close']))
@@ -67,6 +64,8 @@ def get_yf_ticker_data(tickers: list, start: str, end: str, price_kind: list = [
     :param price_kind: choose between Open, Close, Low, High, Volume
     :return: df of tickers and price_kind
     """
+
+    logger.info(f'get data ran on {tickers}')
     df_prices = pd.DataFrame()
     df_prices.index = pd.date_range(start, periods=(
             apply_datetime_format(end, '%Y-%m-%d') - apply_datetime_format(start, '%Y-%m-%d')).days)
@@ -98,19 +97,20 @@ def get_index_nlargest_composits(index_name, n: int = 5) -> (list, pd.DataFrame,
         return [], None, [], 1
 
     tickers, success = get_index_yf_tickers(index_name)
-    assert success > .7, f"Less then 70% of {index_name} composits could be retrieved"
+    if success < .7: logger.warning(f"Less then 70% of {index_name} composits could be retrieved")
 
     data, counter = [], 0
     for item in tickers:
         # capture error on getting market cap, not recoreded for some stocks
         try:
             data.append(yf.Ticker(item).info['marketCap'])
-            # data.append(pdread.get_quote_yahoo(item)['marketCap'].values[0])
             counter += 1
         except Exception as e:
-            logging.info(f'{item} market cap was not found and raised ERROR: {e}')
+            logger.info(f'{item} market cap was not found and raised ERROR: {e}')
             data.append(0)
             counter += 0
+
+    if counter < n : logger.warning(f'For {index_name} only {counter} out of {n} market caps could be found')
 
     df = pd.DataFrame(index=tickers, columns=['market_cap'], data=data)
 

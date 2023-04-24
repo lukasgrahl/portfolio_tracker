@@ -10,7 +10,7 @@ from sklearn.mixture import GaussianMixture
 from src.utils import get_index, printProgBar, train_test_split
 from sklearn.preprocessing import scale
 
-@st.cache_resource()
+
 def run_hmm(data: pd.DataFrame, sel_ind_ticker: list, lead_name: str, sel_ind_nlargest_ticker: list,
             hmm_states: int, hmm_init: int, cv_samples: int, train_test_size: float = .9, **kwargs):
     """
@@ -92,7 +92,6 @@ def run_hmm(data: pd.DataFrame, sel_ind_ticker: list, lead_name: str, sel_ind_nl
         (X_train, y_train, X_train_df, y_train_df), (X_train_cv, y_train_cv)
 
 
-@st.cache_data()
 def get_hmm_features(arr: np.array, target_var_t: str, target_var_lead: str, cols_list: list, exogenous_vars) \
         -> (list, list):
     """

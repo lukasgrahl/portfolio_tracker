@@ -15,7 +15,6 @@ import plotly.express as px
 
 from settings import PROJECT_ROOT
 
-global SECTION_1, SECTION_2, SECTION_3, SEL_IND, SEL_IND_TICKER, PULL_START_DATE, PULL_END_DATE, TAB1, TAB2, TAB3
 
 config = load_toml(os.path.join(PROJECT_ROOT, 'config.toml'))
 config_all_index_dict = {y: x for y, x in list(config['indices'].values())}
